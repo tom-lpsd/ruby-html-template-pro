@@ -1,5 +1,2 @@
-*.o
-Makefile
-pm_to_blib
-Pro.c
-Pro.bs
+tmp
+
