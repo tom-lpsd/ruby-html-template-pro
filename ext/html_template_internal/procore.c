@@ -1039,7 +1039,7 @@ API_IMPL
 struct tmplpro_param* 
 APICALL
 tmplpro_param_init()
-{
+{    
   struct tmplpro_param* param=(struct tmplpro_param*) malloc (sizeof(struct tmplpro_param));
   if (param==NULL) return param;
   /* filling initial struct tmplpro_param with 0 */
