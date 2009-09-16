@@ -77,7 +77,7 @@ class TestHtmlTemplatePro < Test::Unit::TestCase
   end
 
   def dryrun(tmpl, file)
-    File.open("#{file}.raw", 'rw') do |f|
+    File.open("#{file}.raw", 'w') do |f|
       tmpl.output(:print_to => f)
     end
     assert_equal File.read("#{file}.out"), File.read("#{file}.raw")

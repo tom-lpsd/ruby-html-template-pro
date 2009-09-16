@@ -1,14 +1,31 @@
 #include "ruby.h"
 #include "tmplpro.h"
+#define MAX_KEY_LENGTH 256
 
 static ABSTRACT_VALUE* get_ABSTRACT_VALUE_impl (ABSTRACT_MAP* hashPtr, PSTRING name) {
-    rb_hash_aref((VALUE)hashPtr, rb_str_new(name.begin, name.endnext - name.begin));
+    char tmp = *name.endnext;
+    *name.endnext = '\0';
+    VALUE key = ID2SYM(rb_intern(name.begin));
+    *name.endnext = tmp;
+    VALUE val = rb_hash_aref((VALUE)hashPtr, key);
+    if (NIL_P(val)) {
+        key = rb_str_new(name.begin, name.endnext - name.begin);
+        val = rb_hash_aref((VALUE)hashPtr, key);
+    }
+    return val;
 }
 
 static
 PSTRING ABSTRACT_VALUE2PSTRING_impl (ABSTRACT_VALUE* valptr) {
-    PSTRING retval = {NULL,NULL};  
-    if (valptr==NULL || NIL_P(valptr)) return retval;
+    PSTRING retval = {NULL,NULL};
+
+    if (valptr == NULL) return retval;
+
+    if (TYPE(valptr) != T_STRING) {
+        ID to_s = rb_intern("to_s");
+        valptr = rb_funcall(valptr, to_s, 0);
+    }
+
     retval.begin = StringValuePtr(valptr);
     retval.endnext = retval.begin + RSTRING_LEN(valptr);
     return retval;
@@ -26,7 +43,7 @@ ABSTRACT_MAP* get_ABSTRACT_MAP_impl (ABSTRACT_ARRAY* loops_ary, int loop) {
 }
 
 static struct tmplpro_param*
-process_tmplpro_options(void)
+process_tmplpro_options(VALUE self)
 {
     struct tmplpro_param* param = tmplpro_param_init();
     tmplpro_set_option_GetAbstractValFuncPtr(param, &get_ABSTRACT_VALUE_impl);
@@ -34,8 +51,8 @@ process_tmplpro_options(void)
     tmplpro_set_option_AbstractVal2abstractArrayFuncPtr(param, &ABSTRACT_VALUE2ABSTRACT_ARRAY_impl);
     tmplpro_set_option_GetAbstractMapFuncPtr(param, &get_ABSTRACT_MAP_impl);
     tmplpro_set_option_filename(param, "foo.tmpl");
-    VALUE map = rb_hash_new();
-    rb_hash_aset(map, rb_str_new2("foo"), rb_str_new2("bar"));
+    ID params_id = rb_intern("@params");
+    VALUE map = rb_ivar_get(self, params_id);
     tmplpro_set_option_root_param_map(param, map);
     return param;
 }
@@ -46,12 +63,21 @@ release_tmplpro_options(struct tmplpro_param* param)
     tmplpro_param_free(param);
 }
 
-VALUE cpro;
+static VALUE exec_tmpl(VALUE self, VALUE output)
+{
+   struct tmplpro_param* proparam = process_tmplpro_options(self);
+   tmplpro_exec_tmpl(proparam);
+   release_tmplpro_options(proparam);
+}
+
+VALUE m_html;
+VALUE m_template;
+VALUE m_internal;
 
 void Init_html_template_internal(void)
 {
-    cpro = rb_define_class("Pro", rb_cObject);
-    struct tmplpro_param* proparam = process_tmplpro_options();
-    tmplpro_exec_tmpl(proparam);
-    release_tmplpro_options(proparam);
+    m_html = rb_define_module("HTML");
+    m_template = rb_define_module_under(m_html, "Template");
+    m_internal = rb_define_module_under(m_template, "Internal");
+    rb_define_module_function(m_internal, "exec_tmpl", &exec_tmpl, 1);
 }
