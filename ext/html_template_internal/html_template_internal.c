@@ -1,6 +1,9 @@
 #include "ruby.h"
 #include "tmplpro.h"
-#define MAX_KEY_LENGTH 256
+
+static void write_chars_to_file (ABSTRACT_WRITER* OutputFile, const char* begin, const char* endnext) {
+    rb_io_write((VALUE)OutputFile, rb_str_new(begin, endnext - begin));
+}
 
 static ABSTRACT_VALUE* get_ABSTRACT_VALUE_impl (ABSTRACT_MAP* hashPtr, PSTRING name) {
     char tmp = *name.endnext;
@@ -12,7 +15,7 @@ static ABSTRACT_VALUE* get_ABSTRACT_VALUE_impl (ABSTRACT_MAP* hashPtr, PSTRING n
         key = rb_str_new(name.begin, name.endnext - name.begin);
         val = rb_hash_aref((VALUE)hashPtr, key);
     }
-    return val;
+    return (ABSTRACT_VALUE*)val;
 }
 
 static
@@ -23,10 +26,10 @@ PSTRING ABSTRACT_VALUE2PSTRING_impl (ABSTRACT_VALUE* valptr) {
 
     if (TYPE(valptr) != T_STRING) {
         ID to_s = rb_intern("to_s");
-        valptr = rb_funcall(valptr, to_s, 0);
+        valptr = (ABSTRACT_VALUE*)rb_funcall((VALUE)valptr, to_s, 0);
     }
 
-    retval.begin = StringValuePtr(valptr);
+    retval.begin = StringValuePtr((VALUE)valptr);
     retval.endnext = retval.begin + RSTRING_LEN(valptr);
     return retval;
 }
@@ -39,7 +42,7 @@ ABSTRACT_ARRAY* ABSTRACT_VALUE2ABSTRACT_ARRAY_impl (ABSTRACT_VALUE* abstrvalptr)
 
 static 
 ABSTRACT_MAP* get_ABSTRACT_MAP_impl (ABSTRACT_ARRAY* loops_ary, int loop) {
-    return (ABSTRACT_MAP *)rb_ary_entry(loops_ary, loop);
+    return (ABSTRACT_MAP *)rb_ary_entry((VALUE)loops_ary, loop);
 }
 
 static struct tmplpro_param*
@@ -53,7 +56,7 @@ process_tmplpro_options(VALUE self)
     tmplpro_set_option_filename(param, "foo.tmpl");
     ID params_id = rb_intern("@params");
     VALUE map = rb_ivar_get(self, params_id);
-    tmplpro_set_option_root_param_map(param, map);
+    tmplpro_set_option_root_param_map(param, (ABSTRACT_MAP*)map);
     return param;
 }
 
@@ -66,8 +69,9 @@ release_tmplpro_options(struct tmplpro_param* param)
 static VALUE exec_tmpl(VALUE self, VALUE output)
 {
    struct tmplpro_param* proparam = process_tmplpro_options(self);
-   tmplpro_exec_tmpl(proparam);
+   int retval = tmplpro_exec_tmpl(proparam);
    release_tmplpro_options(proparam);
+   return INT2FIX(retval);
 }
 
 VALUE m_html;
