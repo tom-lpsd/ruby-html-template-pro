@@ -20,17 +20,17 @@ static ABSTRACT_VALUE* get_ABSTRACT_VALUE_impl (ABSTRACT_MAP* hashPtr, PSTRING n
 
 static
 PSTRING ABSTRACT_VALUE2PSTRING_impl (ABSTRACT_VALUE* valptr) {
+    VALUE val = (VALUE)valptr;
     PSTRING retval = {NULL,NULL};
 
     if (valptr == NULL) return retval;
 
-    if (TYPE(valptr) != T_STRING) {
+    if (TYPE(val) != T_STRING) {
         ID to_s = rb_intern("to_s");
-        valptr = (ABSTRACT_VALUE*)rb_funcall((VALUE)valptr, to_s, 0);
+        val = rb_funcall(val, to_s, 0);
     }
-
-    retval.begin = StringValuePtr((VALUE)valptr);
-    retval.endnext = retval.begin + RSTRING_LEN(valptr);
+    retval.begin = StringValuePtr(val);
+    retval.endnext = retval.begin + RSTRING_LEN(val);
     return retval;
 }
 
