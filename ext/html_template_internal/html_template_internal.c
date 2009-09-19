@@ -5,11 +5,12 @@ static void write_chars_to_file (ABSTRACT_WRITER* OutputFile, const char* begin,
     rb_io_write((VALUE)OutputFile, rb_str_new(begin, endnext - begin));
 }
 
+static void write_chars_to_string (ABSTRACT_WRITER* OutputString, const char* begin, const char* endnext) {
+    rb_str_cat((VALUE)OutputString, begin, endnext - begin);
+}
+
 static ABSTRACT_VALUE* get_ABSTRACT_VALUE_impl (ABSTRACT_MAP* hashPtr, PSTRING name) {
-    char tmp = *name.endnext;
-    *name.endnext = '\0';
-    VALUE key = ID2SYM(rb_intern(name.begin));
-    *name.endnext = tmp;
+    VALUE key = ID2SYM(rb_intern2(name.begin, name.endnext - name.begin));
     VALUE val = rb_hash_aref((VALUE)hashPtr, key);
     if (NIL_P(val)) {
         key = rb_str_new(name.begin, name.endnext - name.begin);
@@ -29,7 +30,7 @@ PSTRING ABSTRACT_VALUE2PSTRING_impl (ABSTRACT_VALUE* valptr) {
         ID to_s = rb_intern("to_s");
         val = rb_funcall(val, to_s, 0);
     }
-    retval.begin = StringValuePtr(val);
+    retval.begin = RSTRING_PTR(val);
     retval.endnext = retval.begin + RSTRING_LEN(val);
     return retval;
 }
@@ -43,6 +44,17 @@ ABSTRACT_ARRAY* ABSTRACT_VALUE2ABSTRACT_ARRAY_impl (ABSTRACT_VALUE* abstrvalptr)
 static 
 ABSTRACT_MAP* get_ABSTRACT_MAP_impl (ABSTRACT_ARRAY* loops_ary, int loop) {
     return (ABSTRACT_MAP *)rb_ary_entry((VALUE)loops_ary, loop);
+}
+
+static 
+PSTRING get_string_from_value(VALUE self, char* key) {
+  ID key_id = rb_intern(key);
+  VALUE strval = rb_ivar_get(self, key_id);
+  PSTRING retval={NULL,NULL};
+  if (NIL_P(strval)) return retval;
+  retval.begin = StringValuePtr(strval);
+  retval.endnext = retval.begin + RSTRING_LEN(strval);
+  return retval;
 }
 
 static struct tmplpro_param*
