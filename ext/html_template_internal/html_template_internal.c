@@ -26,7 +26,7 @@ PSTRING ABSTRACT_VALUE2PSTRING_impl (ABSTRACT_VALUE* valptr) {
     VALUE val = (VALUE)valptr;
     PSTRING retval = {NULL,NULL};
 
-    if (valptr == NULL) return retval;
+    if (valptr == NULL || NIL_P(valptr)) return retval;
 
     if (TYPE(val) != T_STRING) {
         ID to_s = rb_intern("to_s");

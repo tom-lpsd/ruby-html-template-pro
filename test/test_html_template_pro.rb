@@ -51,10 +51,10 @@ class TestHtmlTemplatePro < Test::Unit::TestCase
     _test_tmpl('test_loop4', @varset1, @refset1)
     _test_tmpl('test_loop5', @varset1, @refset1)
     _test_tmpl_options('test_loop6', {
-                         :loop_context_vars=>1,
-                         :debug=>1,
-                         :global_vars=>1,
-                         :die_on_bad_params=>0
+                         :loop_context_vars=>true,
+                         :debug=>true,
+                         :global_vars=>true,
+                         :die_on_bad_params=>false
                        }, :INNER => @inner, :OUTER => @outer)
     assert true
   end
@@ -65,7 +65,7 @@ class TestHtmlTemplatePro < Test::Unit::TestCase
     params = args.inject({}) do |result, item|
       result.update(item)
     end
-    _test_tmpl_options(file, {:loop_context_vars => 1, :case_sensitive => 0 }, params)
+    _test_tmpl_options(file, {:loop_context_vars => true, :case_sensitive => false }, params)
   end
 
   def _test_tmpl_options(file, option, params)
