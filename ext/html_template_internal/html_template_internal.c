@@ -18,7 +18,7 @@ static ABSTRACT_VALUE* get_ABSTRACT_VALUE_impl (ABSTRACT_MAP* hashPtr, PSTRING n
         key = rb_str_new(name.begin, name.endnext - name.begin);
         val = rb_hash_aref((VALUE)hashPtr, key);
     }
-    return (ABSTRACT_VALUE*)val;
+    return NIL_P(val) ? NULL : (ABSTRACT_VALUE*)val;
 }
 
 static
@@ -26,7 +26,7 @@ PSTRING ABSTRACT_VALUE2PSTRING_impl (ABSTRACT_VALUE* valptr) {
     VALUE val = (VALUE)valptr;
     PSTRING retval = {NULL,NULL};
 
-    if (valptr == NULL || NIL_P(valptr)) return retval;
+    if (valptr == NULL) return retval;
 
     if (TYPE(val) != T_STRING) {
         ID to_s = rb_intern("to_s");
