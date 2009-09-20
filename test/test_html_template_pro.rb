@@ -1,5 +1,5 @@
 #!/usr/bin/env ruby
-# -*- coding: utf-8 -*-
+# -*- coding: iso-8859-1 -*-
 
 require 'test/unit'
 require 'html/template/pro'
@@ -12,7 +12,7 @@ class TestHtmlTemplatePro < Test::Unit::TestCase
     }
     @varset2 = {
       :STUFF1 => '\<>"; %FA' + "hidden:\r\012end",
-      :STUFF2 => 'γ»γ’γ»γ’',
+      :STUFF2 => 'Αΰαΰ ίγΰ',
     }
     @refset1 = {
       :HASHREF0 => [],

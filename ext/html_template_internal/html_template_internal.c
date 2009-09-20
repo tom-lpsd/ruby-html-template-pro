@@ -1,6 +1,8 @@
 #include "ruby.h"
 #include "tmplpro.h"
 
+static int debuglevel = 0;
+
 static void write_chars_to_file (ABSTRACT_WRITER* OutputFile, const char* begin, const char* endnext) {
     rb_io_write((VALUE)OutputFile, rb_str_new(begin, endnext - begin));
 }
@@ -35,10 +37,10 @@ PSTRING ABSTRACT_VALUE2PSTRING_impl (ABSTRACT_VALUE* valptr) {
     return retval;
 }
 
-static 
-int get_ABSTRACT_ARRAY_length_impl (ABSTRACT_ARRAY* loops) {
-    if (TYPE(loops) != T_ARRAY) return 0;
-    return RARRAY_LEN((VALUE)loops);
+static
+int is_ABSTRACT_VALUE_true_impl (ABSTRACT_VALUE* valptr) {
+    if (NIL_P(valptr) || TYPE(valptr) == T_FALSE) return 0;
+    return 1;
 }
 
 static 
@@ -48,8 +50,23 @@ ABSTRACT_ARRAY* ABSTRACT_VALUE2ABSTRACT_ARRAY_impl (ABSTRACT_VALUE* abstrvalptr)
 }
 
 static 
+int get_ABSTRACT_ARRAY_length_impl (ABSTRACT_ARRAY* loops) {
+    if (TYPE(loops) != T_ARRAY) return 0;
+    return RARRAY_LEN((VALUE)loops);
+}
+
+static 
 ABSTRACT_MAP* get_ABSTRACT_MAP_impl (ABSTRACT_ARRAY* loops_ary, int loop) {
     return (ABSTRACT_MAP *)rb_ary_entry((VALUE)loops_ary, loop);
+}
+
+typedef void (*set_int_option_functype) (struct tmplpro_param*, int);
+
+static 
+void set_integer_from_hash(VALUE option_hash, char* key, struct tmplpro_param* param, set_int_option_functype setfunc) {
+    ID    option_key = ID2SYM(rb_intern(key));
+    VALUE option_val = rb_hash_aref(option_hash, option_key);
+    setfunc(param, NUM2INT(option_val));
 }
 
 static 
@@ -73,13 +90,47 @@ process_tmplpro_options(VALUE self)
     tmplpro_set_option_AbstractVal2pstringFuncPtr(param, &ABSTRACT_VALUE2PSTRING_impl);
     tmplpro_set_option_AbstractVal2abstractArrayFuncPtr(param, &ABSTRACT_VALUE2ABSTRACT_ARRAY_impl);
     tmplpro_set_option_GetAbstractArrayLengthFuncPtr(param, &get_ABSTRACT_ARRAY_length_impl);
+    tmplpro_set_option_IsAbstractValTrueFuncPtr(param, &is_ABSTRACT_VALUE_true_impl);
     tmplpro_set_option_GetAbstractMapFuncPtr(param, &get_ABSTRACT_MAP_impl);
-    VALUE map = rb_ivar_get(self, rb_intern("@params"));
-    tmplpro_set_option_root_param_map(param, (ABSTRACT_MAP*)map);
+
+    /* checking main arguments */
     PSTRING filename = get_string_from_value(self, "@filename");
     PSTRING scalarref = get_string_from_value(self, "@scalarref");
     tmplpro_set_option_filename(param, filename.begin);
     tmplpro_set_option_scalarref(param, scalarref);
+    if (filename.begin==NULL && scalarref.begin==NULL) {
+        rb_raise(rb_eRuntimeError, "bad arguments: expected filename or scalarref");
+    }
+
+    /* setting param_map */
+    VALUE map = rb_ivar_get(self, rb_intern("@params"));
+    if (NIL_P(map)) {
+        rb_raise(rb_eRuntimeError, "FATAL:output:@param not found");
+    }
+    tmplpro_set_option_root_param_map(param, (ABSTRACT_MAP*)map);
+    /* end setting param_map */
+
+    /* setting filter */
+    ;
+    /* end setting filter */
+
+    VALUE options = rb_ivar_get(self, rb_intern("@options"));
+    if (NIL_P(options)) {
+        rb_raise(rb_eRuntimeError, "FATAL:output:@options not found");
+    }
+    set_integer_from_hash(options,"max_includes",param,tmplpro_set_option_max_includes);
+    set_integer_from_hash(options,"no_includes",param,tmplpro_set_option_no_includes);
+    set_integer_from_hash(options,"search_path_on_include",param,tmplpro_set_option_search_path_on_include);
+    set_integer_from_hash(options,"global_vars",param,tmplpro_set_option_global_vars);
+    set_integer_from_hash(options,"debug",param,tmplpro_set_option_debug);
+    debuglevel = tmplpro_get_option_debug(param);
+    set_integer_from_hash(options,"loop_context_vars",param,tmplpro_set_option_loop_context_vars);
+    set_integer_from_hash(options,"case_sensitive",param,tmplpro_set_option_case_sensitive);
+    set_integer_from_hash(options,"path_like_variable_scope",param,tmplpro_set_option_path_like_variable_scope);
+    /* still unsupported */
+    set_integer_from_hash(options,"strict",param,tmplpro_set_option_strict);
+    set_integer_from_hash(options,"die_on_bad_params",param,tmplpro_set_option_die_on_bad_params);
+
     return param;
 }
 

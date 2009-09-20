@@ -72,6 +72,7 @@ module HTML
           :no_includes => 0,
           :search_path_on_include => 0,
           :loop_context_vars => 0,
+          :path_like_variable_scope => 0,
           :path => [],
           :associate => [],
           :case_sensitive => 0,
