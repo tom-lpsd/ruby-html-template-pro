@@ -113,14 +113,14 @@ static VALUE exec_tmpl(VALUE self, VALUE output)
    return INT2FIX(retval);
 }
 
-VALUE m_html;
-VALUE m_template;
-VALUE m_internal;
+VALUE mHtml;
+VALUE mTemplate;
+VALUE mInternal;
 
 void Init_html_template_internal(void)
 {
-    m_html = rb_define_module("HTML");
-    m_template = rb_define_module_under(m_html, "Template");
-    m_internal = rb_define_module_under(m_template, "Internal");
-    rb_define_module_function(m_internal, "exec_tmpl", &exec_tmpl, 1);
+    mHtml = rb_define_module("HTML");
+    mTemplate = rb_define_module_under(mHtml, "Template");
+    mInternal = rb_define_module_under(mTemplate, "Internal");
+    rb_define_module_function(mInternal, "exec_tmpl", &exec_tmpl, 1);
 }
