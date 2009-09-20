@@ -42,8 +42,14 @@ module HTML
         end
       end
 
-      def param(params)
-        @params.update(params)
+      def param(args=nil)
+        if args.nil?
+          return @params.keys
+        elsif !(args.instance_of? Hash)
+          key = @options[:case_sensitive] ? args : args.downcase
+          return @params[key] || @params[args]
+        end
+        merge_params(args)
       end
 
       def clear_params
@@ -66,19 +72,38 @@ module HTML
         return {
           :param_map => {},
           :filter => [],
-          :debug => 0,
+          :debug => false,
           :max_includes => 10,
-          :global_vars => 0,
-          :no_includes => 0,
-          :search_path_on_include => 0,
-          :loop_context_vars => 0,
-          :path_like_variable_scope => 0,
+          :global_vars => false,
+          :no_includes => false,
+          :search_path_on_include => false,
+          :loop_context_vars => false,
+          :path_like_variable_scope => false,
           :path => [],
           :associate => [],
-          :case_sensitive => 0,
-          :strict => 1,
-          :die_on_bad_params => 0,
+          :case_sensitive => false,
+          :strict => true,
+          :die_on_bad_params => false,
         }
+      end
+
+      def merge_params(params)
+        unless @options[:case_sensitive]
+          params = lowercase_keys params
+        end
+        @params.update(params)
+      end
+
+      def lowercase_keys(orighash)
+        Hash[
+             orighash.map do |key, val|
+               case val
+               when Array then [key.downcase, val.map(&(method :lowercase_keys))]
+               when Proc  then [key.downcase, val.call]
+               else [key.downcase, val]
+               end
+             end
+            ]
       end
     end
   end

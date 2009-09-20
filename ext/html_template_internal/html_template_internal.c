@@ -70,6 +70,14 @@ void set_integer_from_hash(VALUE option_hash, char* key, struct tmplpro_param* p
 }
 
 static 
+void set_boolean_from_hash(VALUE option_hash, char* key, struct tmplpro_param* param, set_int_option_functype setfunc) {
+    ID    option_key = ID2SYM(rb_intern(key));
+    VALUE option_val = rb_hash_aref(option_hash, option_key);
+    int val = NIL_P(option_val) || TYPE(option_val) == T_FALSE ? 0 : 1;
+    setfunc(param, val);
+}
+
+static 
 PSTRING get_string_from_value(VALUE self, char* key) {
   ID key_id = rb_intern(key);
   VALUE strval = rb_ivar_get(self, key_id);
@@ -119,17 +127,17 @@ process_tmplpro_options(VALUE self)
         rb_raise(rb_eRuntimeError, "FATAL:output:@options not found");
     }
     set_integer_from_hash(options,"max_includes",param,tmplpro_set_option_max_includes);
-    set_integer_from_hash(options,"no_includes",param,tmplpro_set_option_no_includes);
-    set_integer_from_hash(options,"search_path_on_include",param,tmplpro_set_option_search_path_on_include);
-    set_integer_from_hash(options,"global_vars",param,tmplpro_set_option_global_vars);
-    set_integer_from_hash(options,"debug",param,tmplpro_set_option_debug);
+    set_boolean_from_hash(options,"no_includes",param,tmplpro_set_option_no_includes);
+    set_boolean_from_hash(options,"search_path_on_include",param,tmplpro_set_option_search_path_on_include);
+    set_boolean_from_hash(options,"global_vars",param,tmplpro_set_option_global_vars);
+    set_boolean_from_hash(options,"debug",param,tmplpro_set_option_debug);
     debuglevel = tmplpro_get_option_debug(param);
-    set_integer_from_hash(options,"loop_context_vars",param,tmplpro_set_option_loop_context_vars);
-    set_integer_from_hash(options,"case_sensitive",param,tmplpro_set_option_case_sensitive);
-    set_integer_from_hash(options,"path_like_variable_scope",param,tmplpro_set_option_path_like_variable_scope);
+    set_boolean_from_hash(options,"loop_context_vars",param,tmplpro_set_option_loop_context_vars);
+    set_boolean_from_hash(options,"case_sensitive",param,tmplpro_set_option_case_sensitive);
+    set_boolean_from_hash(options,"path_like_variable_scope",param,tmplpro_set_option_path_like_variable_scope);
     /* still unsupported */
-    set_integer_from_hash(options,"strict",param,tmplpro_set_option_strict);
-    set_integer_from_hash(options,"die_on_bad_params",param,tmplpro_set_option_die_on_bad_params);
+    set_boolean_from_hash(options,"strict",param,tmplpro_set_option_strict);
+    set_boolean_from_hash(options,"die_on_bad_params",param,tmplpro_set_option_die_on_bad_params);
 
     return param;
 }
