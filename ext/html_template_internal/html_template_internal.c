@@ -3,6 +3,21 @@
 
 static int debuglevel = 0;
 
+struct ruby_callback_state {
+    char **pathlist;
+};
+
+static struct ruby_callback_state *new_ruby_callback_state() {
+    struct ruby_callback_state *state = (struct ruby_callback_state*)malloc(sizeof(struct ruby_callback_state));
+    state->pathlist = NULL;
+    return state;
+}
+
+static void free_ruby_callback_state(struct ruby_callback_state *state) {
+    free(state->pathlist);
+    free(state);
+}
+
 static void write_chars_to_file (ABSTRACT_WRITER* OutputFile, const char* begin, const char* endnext) {
     rb_io_write((VALUE)OutputFile, rb_str_new(begin, endnext - begin));
 }
@@ -64,14 +79,14 @@ typedef void (*set_int_option_functype) (struct tmplpro_param*, int);
 
 static 
 void set_integer_from_hash(VALUE option_hash, char* key, struct tmplpro_param* param, set_int_option_functype setfunc) {
-    ID    option_key = ID2SYM(rb_intern(key));
+    VALUE option_key = ID2SYM(rb_intern(key));
     VALUE option_val = rb_hash_aref(option_hash, option_key);
     setfunc(param, NUM2INT(option_val));
 }
 
 static 
 void set_boolean_from_hash(VALUE option_hash, char* key, struct tmplpro_param* param, set_int_option_functype setfunc) {
-    ID    option_key = ID2SYM(rb_intern(key));
+    VALUE option_key = ID2SYM(rb_intern(key));
     VALUE option_val = rb_hash_aref(option_hash, option_key);
     int val = NIL_P(option_val) || TYPE(option_val) == T_FALSE ? 0 : 1;
     setfunc(param, val);
@@ -86,6 +101,27 @@ PSTRING get_string_from_value(VALUE self, char* key) {
   retval.begin = StringValuePtr(strval);
   retval.endnext = retval.begin + RSTRING_LEN(strval);
   return retval;
+}
+
+static 
+char** set_pathlist(VALUE self, VALUE options, char* param_name) {
+    long i, len;
+    struct ruby_callback_state *state;
+    VALUE key = ID2SYM(rb_intern(param_name));
+    VALUE paths = rb_hash_aref(options, key);
+    VALUE callback_state = rb_ivar_get(self, rb_intern("@callback"));
+    if (NIL_P(paths) || NIL_P(callback_state)) return NULL;
+    Data_Get_Struct(callback_state, struct ruby_callback_state, state);
+    if (TYPE(paths) != T_ARRAY) rb_raise(rb_eRuntimeError, "path param is not array");
+    len = RARRAY_LEN(paths);
+    if (len < 0) return NULL;
+    state->pathlist = (char **)malloc(sizeof(char*) * (len + 1));
+    for (i=0;i<len;i++) {
+        VALUE elem = rb_ary_entry(paths, i);
+        state->pathlist[i] = StringValueCStr(elem);
+    }
+    state->pathlist[len] = NULL;
+    return state->pathlist;
 }
 
 static struct tmplpro_param*
@@ -139,6 +175,10 @@ process_tmplpro_options(VALUE self)
     set_boolean_from_hash(options,"strict",param,tmplpro_set_option_strict);
     set_boolean_from_hash(options,"die_on_bad_params",param,tmplpro_set_option_die_on_bad_params);
 
+    /* set path */
+    tmplpro_set_option_path(param, set_pathlist(self, options, "path"));
+    tmplpro_set_option_FindFileFuncPtr(param, NULL);
+
     return param;
 }
 
@@ -148,34 +188,46 @@ release_tmplpro_options(struct tmplpro_param* param)
     tmplpro_param_free(param);
 }
 
-static VALUE exec_tmpl(VALUE self, VALUE output)
-{
-   struct tmplpro_param* proparam = process_tmplpro_options(self);
-   writer_functype writer;
-
-   switch (TYPE(output)) {
-   case T_STRING:
-       writer = &write_chars_to_string;
-       break;
-   case T_FILE:
-       writer = &write_chars_to_file;
-       break;
-   default:
-       rb_warning("bad file descriptor. Use output=stdout\n");
-       writer = &write_chars_to_file;
-       output = rb_stdout;
-   }
-
-   tmplpro_set_option_WriterFuncPtr(proparam, writer);
-   tmplpro_set_option_ext_writer_state(proparam, (ABSTRACT_WRITER *)output);
-   int retval = tmplpro_exec_tmpl(proparam);
-   release_tmplpro_options(proparam);
-   return INT2FIX(retval);
-}
-
 VALUE mHtml;
 VALUE mTemplate;
 VALUE mInternal;
+VALUE cHTMLTemplateInternalCallbackState;
+
+static void set_callback_state(VALUE self)
+{
+    ID id = rb_intern("@callback");
+    struct ruby_callback_state *state = new_ruby_callback_state();
+    VALUE callback_state = Data_Wrap_Struct(cHTMLTemplateInternalCallbackState, 0,
+                                            &free_ruby_callback_state, state);
+    rb_ivar_set(self, id, callback_state);
+}
+
+static VALUE exec_tmpl(VALUE self, VALUE output)
+{
+    writer_functype writer;
+    struct tmplpro_param* proparam;
+    set_callback_state(self);
+    proparam = process_tmplpro_options(self);
+
+    switch (TYPE(output)) {
+    case T_STRING:
+        writer = &write_chars_to_string;
+        break;
+    case T_FILE:
+        writer = &write_chars_to_file;
+        break;
+    default:
+        rb_warning("bad file descriptor. Use output=stdout\n");
+        writer = &write_chars_to_file;
+        output = rb_stdout;
+    }
+
+    tmplpro_set_option_WriterFuncPtr(proparam, writer);
+    tmplpro_set_option_ext_writer_state(proparam, (ABSTRACT_WRITER *)output);
+    int retval = tmplpro_exec_tmpl(proparam);
+    release_tmplpro_options(proparam);
+    return INT2FIX(retval);
+}
 
 void Init_html_template_internal(void)
 {
@@ -183,4 +235,5 @@ void Init_html_template_internal(void)
     mTemplate = rb_define_module_under(mHtml, "Template");
     mInternal = rb_define_module_under(mTemplate, "Internal");
     rb_define_module_function(mInternal, "exec_tmpl", &exec_tmpl, 1);
+    cHTMLTemplateInternalCallbackState = rb_define_class_under(mInternal, "CallbackState", rb_cObject);
 }

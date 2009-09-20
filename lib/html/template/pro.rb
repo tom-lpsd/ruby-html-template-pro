@@ -14,6 +14,9 @@ module HTML
           raise "HTML::Template::Pro.new called with multiple (or no) template sources specified!"
         end
         @params = @options[:param_map]
+        unless @options[:path].instance_of? Array
+          @options[:path] = [ @options[:path] ]
+        end
         if args.include? :filename
           @filename = args[:filename]
           @scalarref = nil
