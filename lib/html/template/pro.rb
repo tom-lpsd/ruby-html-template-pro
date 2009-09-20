@@ -6,11 +6,39 @@ module HTML
 
       include HTML::Template::Internal
 
+      INPUTS = [:filename, :filehandle, :arrayref, :scalarref, :source]
+
       def initialize(args={})
         @options = default_options.merge(args)
+        if args.keys.count(&INPUTS.method(:include?)) != 1
+          raise "HTML::Template::Pro.new called with multiple (or no) template sources specified!"
+        end
         @params = @options[:param_map]
         if args.include? :filename
           @filename = args[:filename]
+          @scalarref = nil
+        else
+          @filename = nil
+          if args.include? :source
+            source = args[:source]
+            @scalarref = case source
+                         when IO     then source.read
+                         when Array  then source.join('')
+                         when String then source
+                         else
+                           if source.respond_to? :to_str 
+                             source.to_str
+                           else
+                             raise "unknown source type"
+                           end
+                         end
+          elsif args.include? :scalarref
+            @scalarref = args[:scalarref]
+          elsif args.include? :arrayref
+            @scalarref = args[:arrayref].join('')
+          elsif args.include? :filehandle
+            @scalarref = args[:filehandle].read
+          end
         end
       end
 
