@@ -36,6 +36,11 @@ PSTRING ABSTRACT_VALUE2PSTRING_impl (ABSTRACT_VALUE* valptr) {
 }
 
 static 
+int get_ABSTRACT_ARRAY_length_impl (ABSTRACT_ARRAY* loops) {
+    return RARRAY_LEN((VALUE)loops);
+}
+
+static 
 ABSTRACT_ARRAY* ABSTRACT_VALUE2ABSTRACT_ARRAY_impl (ABSTRACT_VALUE* abstrvalptr) {
     if (TYPE(abstrvalptr) != T_ARRAY) return 0;
     return (ABSTRACT_ARRAY*)abstrvalptr;
@@ -61,14 +66,19 @@ static struct tmplpro_param*
 process_tmplpro_options(VALUE self)
 {
     struct tmplpro_param* param = tmplpro_param_init();
+
+    tmplpro_set_option_WriterFuncPtr(param, &write_chars_to_string);
     tmplpro_set_option_GetAbstractValFuncPtr(param, &get_ABSTRACT_VALUE_impl);
     tmplpro_set_option_AbstractVal2pstringFuncPtr(param, &ABSTRACT_VALUE2PSTRING_impl);
     tmplpro_set_option_AbstractVal2abstractArrayFuncPtr(param, &ABSTRACT_VALUE2ABSTRACT_ARRAY_impl);
+    tmplpro_set_option_GetAbstractArrayLengthFuncPtr(param, &get_ABSTRACT_ARRAY_length_impl);
     tmplpro_set_option_GetAbstractMapFuncPtr(param, &get_ABSTRACT_MAP_impl);
-    tmplpro_set_option_filename(param, "foo.tmpl");
-    ID params_id = rb_intern("@params");
-    VALUE map = rb_ivar_get(self, params_id);
+    VALUE map = rb_ivar_get(self, rb_intern("@params"));
     tmplpro_set_option_root_param_map(param, (ABSTRACT_MAP*)map);
+    PSTRING filename = get_string_from_value(self, "@filename");
+    PSTRING scalarref = get_string_from_value(self, "@scalarref");
+    tmplpro_set_option_filename(param, filename.begin);
+    tmplpro_set_option_scalarref(param, scalarref);
     return param;
 }
 
@@ -81,6 +91,23 @@ release_tmplpro_options(struct tmplpro_param* param)
 static VALUE exec_tmpl(VALUE self, VALUE output)
 {
    struct tmplpro_param* proparam = process_tmplpro_options(self);
+   writer_functype writer;
+
+   switch (TYPE(output)) {
+   case T_STRING:
+       writer = &write_chars_to_string;
+       break;
+   case T_FILE:
+       writer = &write_chars_to_file;
+       break;
+   default:
+       rb_warning("bad file descriptor. Use output=stdout\n");
+       writer = &write_chars_to_file;
+       output = rb_stdout;
+   }
+
+   tmplpro_set_option_WriterFuncPtr(proparam, writer);
+   tmplpro_set_option_ext_writer_state(proparam, (ABSTRACT_WRITER *)output);
    int retval = tmplpro_exec_tmpl(proparam);
    release_tmplpro_options(proparam);
    return INT2FIX(retval);
