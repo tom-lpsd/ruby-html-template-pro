@@ -37,6 +37,7 @@ PSTRING ABSTRACT_VALUE2PSTRING_impl (ABSTRACT_VALUE* valptr) {
 
 static 
 int get_ABSTRACT_ARRAY_length_impl (ABSTRACT_ARRAY* loops) {
+    if (TYPE(loops) != T_ARRAY) return 0;
     return RARRAY_LEN((VALUE)loops);
 }
 
