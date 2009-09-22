@@ -14,35 +14,12 @@ module HTML
           raise "HTML::Template::Pro.new called with multiple (or no) template sources specified!"
         end
         @params = @options[:param_map]
-        unless @options[:path].instance_of? Array
-          @options[:path] = [ @options[:path] ]
-        end
-        if args.include? :filename
-          @filename = args[:filename]
-          @scalarref = nil
-        else
-          @filename = nil
-          if args.include? :source
-            source = args[:source]
-            @scalarref = case source
-                         when IO     then source.read
-                         when Array  then source.join('')
-                         when String then source
-                         else
-                           if source.respond_to? :to_str 
-                             source.to_str
-                           else
-                             raise "unknown source type"
-                           end
-                         end
-          elsif args.include? :scalarref
-            @scalarref = args[:scalarref]
-          elsif args.include? :arrayref
-            @scalarref = args[:arrayref].join('')
-          elsif args.include? :filehandle
-            @scalarref = args[:filehandle].read
+        [:path, :associate, :filter].each do |opt|
+          unless @options[opt].instance_of? Array
+            @options[opt] = [ @options[opt] ]
           end
         end
+        initialize_tmpl_source args
       end
 
       def param(args=nil)
@@ -88,6 +65,36 @@ module HTML
           :strict => true,
           :die_on_bad_params => false,
         }
+      end
+
+      def initialize_tmpl_source(args)
+        if args.include? :filename
+          @filename = args[:filename]
+          @scalarref = nil
+          return
+        end
+
+        @filename = nil
+        if args.include? :source
+          source = args[:source]
+          @scalarref = case source
+                       when IO     then source.read
+                       when Array  then source.join('')
+                       when String then source
+                       else
+                         if source.respond_to? :to_str 
+                           source.to_str
+                         else
+                           raise "unknown source type"
+                         end
+                       end
+        elsif args.include? :scalarref
+          @scalarref = args[:scalarref]
+        elsif args.include? :arrayref
+          @scalarref = args[:arrayref].join('')
+        elsif args.include? :filehandle
+          @scalarref = args[:filehandle].read
+        end
       end
 
       def merge_params(params)
