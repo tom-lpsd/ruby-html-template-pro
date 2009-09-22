@@ -26,12 +26,15 @@ module HTML
         @filtered_template = {}
       end
 
-      def param(args=nil)
-        if args.nil?
-          return @params.keys
-        elsif !(args.instance_of? Hash)
+      def param(args=nil, &block)
+        return @params.keys if args.nil?
+        if !(args.instance_of? Hash)
           key = @options[:case_sensitive] ? args : args.downcase
-          return @params[key] || @params[args]
+          if block
+            return @params[key] = block
+          else
+            return @params[key] || @params[args]
+          end
         end
         merge_params(args)
       end

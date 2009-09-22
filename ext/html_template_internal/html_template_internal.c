@@ -43,6 +43,10 @@ PSTRING ABSTRACT_VALUE2PSTRING_impl (ABSTRACT_VALUE* valptr) {
 
     if (valptr == NULL) return retval;
 
+    if (rb_obj_is_instance_of(val, rb_cProc)) {
+        val = rb_proc_call(val, rb_ary_new());
+    }
+
     if (TYPE(val) != T_STRING) {
         ID to_s = rb_intern("to_s");
         val = rb_funcall(val, to_s, 0);
@@ -54,7 +58,16 @@ PSTRING ABSTRACT_VALUE2PSTRING_impl (ABSTRACT_VALUE* valptr) {
 
 static
 int is_ABSTRACT_VALUE_true_impl (ABSTRACT_VALUE* valptr) {
-    if (NIL_P(valptr) || TYPE(valptr) == T_FALSE) return 0;
+    VALUE val = (VALUE)valptr;
+
+    if (NIL_P(val)) return 0;
+
+    if (rb_obj_is_instance_of(val, rb_cProc)) {
+        val = rb_proc_call(val, rb_ary_new());
+    }
+
+    if (NIL_P(val) || TYPE(val) == T_FALSE) return 0;
+
     return 1;
 }
 
