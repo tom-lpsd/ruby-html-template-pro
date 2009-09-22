@@ -1,14 +1,6 @@
 <HTML><BODY>
-<H1> test expr with perl-supplied functions </H1>
-hello('dad')=hi, dad!
-lc('DAD')=dad
-lc(ONE)=1
-sprintf('1+1=%d', TWO)=1+1=2
-<H1> test expr with user-defined functions </H1>
-registered_func('self')=self
-hello_string()=hello!
-arglist()=[]
-arglist('')=[]
-arglist('','')=[][]
-arglist('a','b')=[a][b]
+<H1> test nt aryphmetics </H1>
+1+1=2
+2*2=4
+4/2=2
 </body></html>

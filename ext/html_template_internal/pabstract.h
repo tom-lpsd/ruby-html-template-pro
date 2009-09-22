@@ -23,6 +23,7 @@ typedef void ABSTRACT_WRITER;
 typedef void ABSTRACT_FINDFILE;
 typedef void ABSTRACT_FILTER;
 typedef void ABSTRACT_CALLER;
+typedef void ABSTRACT_DATASTATE;
 
 typedef void ABSTRACT_ARRAY;
 typedef void ABSTRACT_MAP;
@@ -36,18 +37,17 @@ typedef struct exprval ABSTRACT_EXPRVAL;
 
 typedef void BACKCALL (*writer_functype) (ABSTRACT_WRITER*,const char* begin, const char* endnext);
 
-typedef ABSTRACT_VALUE* BACKCALL (*get_ABSTRACT_VALUE_functype) (ABSTRACT_MAP*, PSTRING name);
-typedef PSTRING BACKCALL (*ABSTRACT_VALUE2PSTRING_functype) (ABSTRACT_VALUE*);
+typedef ABSTRACT_VALUE* BACKCALL (*get_ABSTRACT_VALUE_functype) (ABSTRACT_DATASTATE*, ABSTRACT_MAP*, PSTRING name);
+typedef PSTRING BACKCALL (*ABSTRACT_VALUE2PSTRING_functype) (ABSTRACT_DATASTATE*, ABSTRACT_VALUE*);
 /* optional */
-typedef int BACKCALL (*is_ABSTRACT_VALUE_true_functype) (ABSTRACT_VALUE*);
+typedef int BACKCALL (*is_ABSTRACT_VALUE_true_functype) (ABSTRACT_DATASTATE*, ABSTRACT_VALUE*);
 
-typedef ABSTRACT_ARRAY* BACKCALL (*ABSTRACT_VALUE2ABSTRACT_ARRAY_functype) (ABSTRACT_VALUE*);
-typedef int BACKCALL (*get_ABSTRACT_ARRAY_length_functype) (ABSTRACT_ARRAY*);
-typedef ABSTRACT_MAP* BACKCALL (*get_ABSTRACT_MAP_functype) (ABSTRACT_ARRAY*,int);
+typedef ABSTRACT_ARRAY* BACKCALL (*ABSTRACT_VALUE2ABSTRACT_ARRAY_functype) (ABSTRACT_DATASTATE*, ABSTRACT_VALUE*);
+typedef int BACKCALL (*get_ABSTRACT_ARRAY_length_functype) (ABSTRACT_DATASTATE*, ABSTRACT_ARRAY*);
+typedef ABSTRACT_MAP* BACKCALL (*get_ABSTRACT_MAP_functype) (ABSTRACT_DATASTATE*, ABSTRACT_ARRAY*,int);
 
-/* optional */
-typedef void BACKCALL (*end_loop_functype) (ABSTRACT_MAP* root_param_map, int newlevel);
-typedef void BACKCALL (*select_loop_scope_functype) (ABSTRACT_MAP* root_param_map, int level);
+/* optional notifier */
+typedef void BACKCALL (*exit_loop_scope_functype) (ABSTRACT_DATASTATE*, ABSTRACT_ARRAY*);
 
 typedef const char* BACKCALL (*find_file_functype) (ABSTRACT_FINDFILE*, const char* filename, const char* prevfilename);
 
@@ -279,7 +279,6 @@ typedef void BACKCALL (*call_expr_userfnc_functype) (ABSTRACT_CALLER*, ABSTRACT_
     using one of the functions 
     \li tmplpro_get_expr_as_int64()
     \li tmplpro_get_expr_as_double()
-    \li tmplpro_get_expr_as_string()
     \li tmplpro_get_expr_as_pstring()
 
     @see tmplpro_set_option_PushExprArglistFuncPtr
@@ -297,6 +296,7 @@ typedef void BACKCALL (*call_expr_userfnc_functype) (ABSTRACT_CALLER*, ABSTRACT_
 
     To return the result user function returned the callback of call_expr_userfnc_functype should 
     call one of the functions 
+    \li tmplpro_set_expr_as_null()
     \li tmplpro_set_expr_as_int64()
     \li tmplpro_set_expr_as_double()
     \li tmplpro_set_expr_as_string()
@@ -310,6 +310,7 @@ typedef void BACKCALL (*call_expr_userfnc_functype) (ABSTRACT_CALLER*, ABSTRACT_
 
     \brief optional pointer to be passed to a callback of ::writer_functype.
 
+    Optional pointer to store internal state for a callback of ::writer_functype.
     If used, it should be stored beforehand with tmplpro_set_option_ext_writer_state().
     @see tmplpro_set_option_ext_writer_state
  */
@@ -318,6 +319,7 @@ typedef void BACKCALL (*call_expr_userfnc_functype) (ABSTRACT_CALLER*, ABSTRACT_
 
     \brief optional pointer to be passed to a callback of ::find_file_functype.
 
+    Optional pointer to store internal state for a callback of ::find_file_functype.
     If used, it should be stored beforehand with tmplpro_set_option_ext_findfile_state().
     @see tmplpro_set_option_ext_findfile_state
  */
@@ -326,6 +328,7 @@ typedef void BACKCALL (*call_expr_userfnc_functype) (ABSTRACT_CALLER*, ABSTRACT_
 
     \brief optional pointer to be passed to a callback of ::load_file_functype / ::unload_file_functype.
 
+    Optional pointer to store internal state for a callback of ::load_file_functype / ::unload_file_functype.
     If used, it should be stored beforehand with tmplpro_set_option_ext_filter_state().
     @see tmplpro_set_option_ext_filter_state
  */
@@ -334,9 +337,26 @@ typedef void BACKCALL (*call_expr_userfnc_functype) (ABSTRACT_CALLER*, ABSTRACT_
 
     \brief optional pointer to be passed to a callback of ::call_expr_userfnc_functype.
 
+    Optional pointer to store internal state for a callback of ::call_expr_userfnc_functype.
     If used, it should be stored beforehand with tmplpro_set_option_ext_calluserfunc_state().
     @see tmplpro_set_option_ext_calluserfunc_state
  */
+
+/** \typedef typedef void ABSTRACT_DATASTATE
+
+    \brief optional pointer to be passed to data manipulation callbacks of 
+    ::get_ABSTRACT_VALUE_functype, ::ABSTRACT_VALUE2ABSTRACT_ARRAY_functype, 
+    ::get_ABSTRACT_ARRAY_length_functype, ::is_ABSTRACT_VALUE_true_functype,
+    ::get_ABSTRACT_MAP_functype, exit_loop_scope_functype.
+
+    Optional pointer to store internal state for a callback of 
+    ::get_ABSTRACT_VALUE_functype, ::ABSTRACT_VALUE2ABSTRACT_ARRAY_functype, 
+    ::get_ABSTRACT_ARRAY_length_functype, ::is_ABSTRACT_VALUE_true_functype,
+    ::get_ABSTRACT_MAP_functype, exit_loop_scope_functype.
+    If used, it should be stored beforehand with tmplpro_set_option_ext_data_state().
+    @see tmplpro_set_option_ext_data_state
+ */
+
 
 /** \typedef typedef void ABSTRACT_ARRAY
 

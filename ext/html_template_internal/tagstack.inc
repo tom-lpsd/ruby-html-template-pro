@@ -25,7 +25,7 @@ int tagstack_notempty(struct tagstack* tagstack) {
 /*
 static 
 void tagstack_entry_debug(struct tagstack_entry item) {
- tmpl_log(NULL,TMPL_LOG_DEBUG,"vcontext = %d value=%d\n",item.vcontext,item.value);
+ tmpl_log(TMPL_LOG_DEBUG,"vcontext = %d value=%d\n",item.vcontext,item.value);
 }
 */
 
@@ -37,10 +37,10 @@ struct tagstack_entry* tagstack_top(struct tagstack* tagstack) {
 static 
 struct tagstack_entry tagstack_pop(struct tagstack* tagstack) {
   if (tagstack->pos<0) {
-    tmpl_log(NULL,TMPL_LOG_ERROR,"stack underflow:tags stack is empty\n");
+    tmpl_log(TMPL_LOG_ERROR,"stack underflow:tags stack is empty\n");
     tagstack->pos=0;
     if (tagstack->depth<0) {
-      tmpl_log(NULL,TMPL_LOG_ERROR,"FATAL:stack error:tags stack is uninitialized\n");
+      tmpl_log(TMPL_LOG_ERROR,"FATAL:stack error:tags stack is uninitialized\n");
       tagstack_init(tagstack);
     }
   }

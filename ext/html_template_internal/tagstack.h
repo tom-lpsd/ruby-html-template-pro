@@ -5,7 +5,7 @@ struct tagstack_entry {
   int tag;		/* code of tag */
   int value;		/* if (true/false) - used in else */
   int vcontext;		/* visibility context of the tag (visible/unvisible) */
-  char* position;	/* start of tag; useful for loops */
+  const char* position;	/* start of tag; useful for loops */
 };
 
 static 

@@ -8,10 +8,8 @@ size_t pbuffer_size(pbuffer* pBuffer) {
 }
 TMPLPRO_LOCAL
 void pbuffer_preinit(pbuffer* pBuffer) {
-  if (pBuffer->bufsize!=0) {
-    pBuffer->bufsize=0;
-    pBuffer->buffer=NULL;
-  }
+  pBuffer->bufsize=0;
+  pBuffer->buffer=NULL;
 }
 TMPLPRO_LOCAL
 char* pbuffer_init(pbuffer* pBuffer) {
@@ -45,13 +43,14 @@ void pbuffer_free(pbuffer* pBuffer) {
   if (pBuffer->bufsize!=0) {
     pBuffer->bufsize=0;
     free(pBuffer->buffer);
+    pBuffer->buffer=NULL;
   }
 }
 TMPLPRO_LOCAL
 void pbuffer_fill_from_pstring(pbuffer* pBuffer, PSTRING pstr) {
   size_t size = pstr.endnext - pstr.begin;
-  char * from = pstr.begin;
-  char * dest;
+  const char* from = pstr.begin;
+  char* dest;
   if (pBuffer->bufsize==0) {
     pbuffer_init_as(pBuffer, size+1);
   } else if (pBuffer->bufsize<size) {
@@ -62,6 +61,12 @@ void pbuffer_fill_from_pstring(pbuffer* pBuffer, PSTRING pstr) {
     *(dest++)=*(from++);
   }
   *dest='\0';
+}
+TMPLPRO_LOCAL
+void pbuffer_swap(pbuffer* buf1, pbuffer* buf2) {
+  pbuffer tmpbuf = *buf1;
+  *buf1 = *buf2;
+  *buf2 = tmpbuf;
 }
 
 /*

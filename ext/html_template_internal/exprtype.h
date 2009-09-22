@@ -11,6 +11,10 @@
 #ifndef _EXPRTYPE_H
 #define _EXPRTYPE_H	1
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #if HAVE_INTTYPES_H
 #  include <inttypes.h>
 #else

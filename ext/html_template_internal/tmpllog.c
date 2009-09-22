@@ -8,48 +8,36 @@
 
 /* based on FFmpeg av_log API */
 
-#include "pstring.h"
-#include "tmpllog.h"
-#include "prostate.h"
 #include <stdio.h>
 #include <string.h>
+#include "tmpllog.h"
 
 static int tmpl_log_level = TMPL_LOG_ERROR;
 
 static void 
-tmpl_log_default_callback(void* ptr, int level, const char* fmt, va_list vl)
+tmpl_log_default_callback(int level, const char* fmt, va_list vl)
 {
-    static int print_prefix=1;
-    struct tmplpro_state* state= ptr ? (struct tmplpro_state*)ptr : NULL;
     if(level>tmpl_log_level) return;
-    /*#undef fprintf*/
-    if(print_prefix && state) {
-      _tmpl_log_state(state,level);
-    }
-    /*#define fprintf please_use_tmpl_log*/
-        
-    print_prefix= strstr(fmt, "\n") != NULL;
-        
     vfprintf(stderr, fmt, vl);
 }
 
-static void (*tmpl_log_callback)(void*, int, const char*, va_list) = tmpl_log_default_callback;
+static void (*tmpl_log_callback)(int, const char*, va_list) = tmpl_log_default_callback;
 
 TMPLPRO_LOCAL
 void 
-tmpl_log(void* state, int level, const char *fmt, ...)
+tmpl_log(int level, const char *fmt, ...)
 {
     va_list vl;
     va_start(vl, fmt);
-    tmpl_vlog(state, level, fmt, vl);
+    tmpl_vlog(level, fmt, vl);
     va_end(vl);
 }
 
 TMPLPRO_LOCAL
 void 
-tmpl_vlog(void* state, int level, const char *fmt, va_list vl)
+tmpl_vlog(int level, const char *fmt, va_list vl)
 {
-    tmpl_log_callback(state, level, fmt, vl);
+    tmpl_log_callback(level, fmt, vl);
 }
 
 TMPLPRO_LOCAL
@@ -68,7 +56,7 @@ tmpl_log_set_level(int level)
 
 TMPLPRO_LOCAL
 void 
-tmpl_log_set_callback(void (*callback)(void*, int, const char*, va_list))
+tmpl_log_set_callback(void (*callback)(int, const char*, va_list))
 {
     tmpl_log_callback = callback;
 }

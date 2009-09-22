@@ -26,7 +26,7 @@ static void write_chars_to_string (ABSTRACT_WRITER* OutputString, const char* be
     rb_str_cat((VALUE)OutputString, begin, endnext - begin);
 }
 
-static ABSTRACT_VALUE* get_ABSTRACT_VALUE_impl (ABSTRACT_MAP* hashPtr, PSTRING name) {
+static ABSTRACT_VALUE* get_ABSTRACT_VALUE_impl (ABSTRACT_DATASTATE *none, ABSTRACT_MAP* hashPtr, PSTRING name) {
     VALUE key = ID2SYM(rb_intern2(name.begin, name.endnext - name.begin));
     VALUE val = rb_hash_aref((VALUE)hashPtr, key);
     if (NIL_P(val)) {
@@ -37,7 +37,7 @@ static ABSTRACT_VALUE* get_ABSTRACT_VALUE_impl (ABSTRACT_MAP* hashPtr, PSTRING n
 }
 
 static
-PSTRING ABSTRACT_VALUE2PSTRING_impl (ABSTRACT_VALUE* valptr) {
+PSTRING ABSTRACT_VALUE2PSTRING_impl (ABSTRACT_DATASTATE *none, ABSTRACT_VALUE* valptr) {
     VALUE val = (VALUE)valptr;
     PSTRING retval = {NULL,NULL};
 
@@ -57,7 +57,7 @@ PSTRING ABSTRACT_VALUE2PSTRING_impl (ABSTRACT_VALUE* valptr) {
 }
 
 static
-int is_ABSTRACT_VALUE_true_impl (ABSTRACT_VALUE* valptr) {
+int is_ABSTRACT_VALUE_true_impl (ABSTRACT_DATASTATE *none, ABSTRACT_VALUE* valptr) {
     VALUE val = (VALUE)valptr;
 
     if (NIL_P(val)) return 0;
@@ -72,19 +72,19 @@ int is_ABSTRACT_VALUE_true_impl (ABSTRACT_VALUE* valptr) {
 }
 
 static 
-ABSTRACT_ARRAY* ABSTRACT_VALUE2ABSTRACT_ARRAY_impl (ABSTRACT_VALUE* abstrvalptr) {
+ABSTRACT_ARRAY* ABSTRACT_VALUE2ABSTRACT_ARRAY_impl (ABSTRACT_DATASTATE *none, ABSTRACT_VALUE* abstrvalptr) {
     if (TYPE(abstrvalptr) != T_ARRAY) return 0;
     return (ABSTRACT_ARRAY*)abstrvalptr;
 }
 
 static 
-int get_ABSTRACT_ARRAY_length_impl (ABSTRACT_ARRAY* loops) {
+int get_ABSTRACT_ARRAY_length_impl (ABSTRACT_DATASTATE *none, ABSTRACT_ARRAY* loops) {
     if (TYPE(loops) != T_ARRAY) return 0;
     return RARRAY_LEN((VALUE)loops);
 }
 
 static 
-ABSTRACT_MAP* get_ABSTRACT_MAP_impl (ABSTRACT_ARRAY* loops_ary, int loop) {
+ABSTRACT_MAP* get_ABSTRACT_MAP_impl (ABSTRACT_DATASTATE *none, ABSTRACT_ARRAY* loops_ary, int loop) {
     return (ABSTRACT_MAP *)rb_ary_entry((VALUE)loops_ary, loop);
 }
 
@@ -187,11 +187,12 @@ process_tmplpro_options(VALUE self)
     }
 
     /* setting param_map */
+    tmplpro_clear_option_param_map(param);
     VALUE map = rb_ivar_get(self, rb_intern("@params"));
     if (NIL_P(map)) {
         rb_raise(rb_eRuntimeError, "FATAL:output:@param not found");
     }
-    tmplpro_set_option_root_param_map(param, (ABSTRACT_MAP*)map);
+    tmplpro_push_option_param_map(param, (ABSTRACT_MAP*)map, 0);
     /* end setting param_map */
 
     /* setting filter */
@@ -218,11 +219,9 @@ process_tmplpro_options(VALUE self)
     set_boolean_from_hash(options,"debug",param,tmplpro_set_option_debug);
     debuglevel = tmplpro_get_option_debug(param);
     set_boolean_from_hash(options,"loop_context_vars",param,tmplpro_set_option_loop_context_vars);
-    set_boolean_from_hash(options,"case_sensitive",param,tmplpro_set_option_case_sensitive);
     set_boolean_from_hash(options,"path_like_variable_scope",param,tmplpro_set_option_path_like_variable_scope);
     /* still unsupported */
     set_boolean_from_hash(options,"strict",param,tmplpro_set_option_strict);
-    set_boolean_from_hash(options,"die_on_bad_params",param,tmplpro_set_option_die_on_bad_params);
 
     /* set path */
     tmplpro_set_option_path(param, set_pathlist(self, options, "path"));

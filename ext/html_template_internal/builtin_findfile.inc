@@ -10,22 +10,33 @@
  * see
  * http://sourceware.org/autobook/autobook/autobook_249.html
  */
+#if defined __CYGWIN32__ && !defined __CYGWIN__
+   /* For backwards compatibility with Cygwin b19 and
+      earlier, we define __CYGWIN__ here, so that
+      we can rely on checking just for that macro. */
+#  define __CYGWIN__  __CYGWIN32__
+#endif
 
-#if defined (_WIN32) || defined (WIN32)
-# define IS_FILE_SEP(X) ((X=='/') || (X=='\\'))
+#if defined _WIN32 && !defined __CYGWIN__
+   /* Use Windows separators on all _WIN32 defining
+      environments, except Cygwin. */
+#  define DIR_SEPARATOR_CHAR		'\\'
+#endif
+
+#if defined (DIR_SEPARATOR_CHAR)
+# define IS_FILE_SEP(X) ((X=='/') || (X==DIR_SEPARATOR_CHAR))
 #else
 # define IS_FILE_SEP(X) (X=='/')
 #endif
 
 static int _ff_exists(const char* path) {
-  FILE *file_p;
-  file_p = fopen(path, "r");
+  FILE *file_p = fopen(path, "r");
   if (file_p) {
       fclose(file_p);
-      //tmpl_log(NULL,TMPL_LOG_ERROR,"_ff_exists: found [%s]\n",path);
+      if (debuglevel>=TMPL_LOG_DEBUG2) tmpl_log(TMPL_LOG_DEBUG2,"_ff_exists: found [%s]\n",path);
       return 1;
     }
-  //tmpl_log(NULL,TMPL_LOG_ERROR,"_ff_exists: not found [%s]\n",path);
+  if (debuglevel>=TMPL_LOG_DEBUG2) tmpl_log(TMPL_LOG_ERROR,"_ff_exists: not found [%s]\n",path);
   return 0;
 }
 
@@ -54,21 +65,21 @@ For functions that manipulate files, the file names can be relative to the curre
  */
 int _ff_is_absolute(const char * filename) {
   unsigned char c0 = *filename;
-#if defined (_WIN32) || defined (WIN32)
+#if defined _WIN32 || defined __CYGWIN__
   unsigned char c1;
 #endif
   if ('\0' == c0) return 0;
   /* \\?\ and \\?\UNC\ prefixes are included too */
   if (IS_FILE_SEP(c0)) return 1;
-#if defined (_WIN32) || defined (WIN32)
+#if defined _WIN32 || defined __CYGWIN__
   c1 = *(++filename);
   if ('\0' == c1) return 0;
-  if (isalpha(c0) && ':'==c1 && '\\'==*filename) return 1;
+  if (isalpha(c0) && ':'==c1 && IS_FILE_SEP(*filename)) return 1;
 #endif
   return 0;
 }
 
-#if defined (_WIN32) || defined (WIN32)
+#if defined _WIN32 || defined __CYGWIN__
 int _ff_is_win_fully_qualified_path(const char * filename) {
   unsigned char c0 = *filename;
   unsigned char c1;
@@ -78,7 +89,7 @@ int _ff_is_win_fully_qualified_path(const char * filename) {
   if ('\0' == c1) return 0;
   c2 = *(++filename);
   /* \\?\ and \\?\UNC\ prefixes are included too */
-  if (isalpha(c0) && ':'==c1 && '\\'==c2) return 1;
+  if (isalpha(c0) && ':'==c1 && IS_FILE_SEP(c2)) return 1;
   if ('\\'==c0 && '\\'==c1 && '?'==c2 && '\\'==*filename) return 1;
   return 0;
 }
@@ -86,7 +97,7 @@ int _ff_is_win_fully_qualified_path(const char * filename) {
 
 #define _ff_canonical_path(X) (X)
 
-static PSTRING _shift_back_pstring_at(PSTRING buf, char* pos, long shift) {
+static MPSTRING _shift_back_pstring_at(MPSTRING buf, char* pos, long shift) {
   if (pos >= buf.begin && (pos+shift) <=buf.endnext) {
     buf.endnext -= shift;
     while (pos<buf.endnext) {
@@ -98,9 +109,9 @@ static PSTRING _shift_back_pstring_at(PSTRING buf, char* pos, long shift) {
   return buf;
 }
 
-static PSTRING _filepath_remove_multiple_slashes(PSTRING buf) {
+static MPSTRING _filepath_remove_multiple_slashes(MPSTRING buf) {
   char* pos = buf.begin;
-#if defined (_WIN32) || defined (WIN32)
+#if defined _WIN32
   /* due to \\?\ and \\?\UNC\ prefixes on WIN platform.
    * see "File Names, Paths, and Namespaces"
    * http://msdn.microsoft.com/en-us/library/aa365247(VS.85).aspx
@@ -115,7 +126,7 @@ static PSTRING _filepath_remove_multiple_slashes(PSTRING buf) {
   return buf;
 }
 
-static const char* _ff_canonical_path_from_buf(PSTRING buf) {
+static const char* _ff_canonical_path_from_buf(MPSTRING buf) {
   char* pos;
   char* prev_slash_next;
   char* slash_begin;
@@ -132,9 +143,9 @@ static const char* _ff_canonical_path_from_buf(PSTRING buf) {
   /*   /.* /../ shift (scan from prevslash to slash back) */
   pos = buf.begin;
   slash_begin = buf.begin;
-#if defined (_WIN32) || defined (WIN32)
+#if defined _WIN32
   /* check for C: */
-  if (((buf.endnext-pos)>1) && isalpha(*pos) && ':'==*(pos+1)) {
+  if (((buf.endnext-pos)>1) && isalpha((unsigned char) *pos) && ':'==*(pos+1)) {
     pos += 2;
     slash_begin += 2;
   }
@@ -177,45 +188,52 @@ static const char* _ff_canonical_path_from_buf(PSTRING buf) {
   return buf.begin;
 }
 
-static PSTRING _ff_add_pstr_to_buffer(PSTRING buf, PSTRING pstr) {
-  PSTRING ret = buf;
+static MPSTRING _ff_add_pstr_to_buffer(MPSTRING buf, PSTRING pstr) {
+  MPSTRING ret = buf;
   const char* s;
-  //tmpl_log(NULL,TMPL_LOG_ERROR,"_ff_add_pstr_to_buffer: called as [%p,%p]+[%p,%p]\n",buf.begin,buf.endnext, pstr.begin,pstr.endnext);
+  //tmpl_log(TMPL_LOG_ERROR,"_ff_add_pstr_to_buffer: called as [%p,%p]+[%p,%p]\n",buf.begin,buf.endnext, pstr.begin,pstr.endnext);
   for (s=pstr.begin;s<pstr.endnext;s++) {*(ret.endnext++)=*s;}
-  //tmpl_log(NULL,TMPL_LOG_ERROR,"_ff_add_pstr_to_buffer: ret = [%p,%p]\n",ret.begin,ret.endnext);
+  //tmpl_log(TMPL_LOG_ERROR,"_ff_add_pstr_to_buffer: ret = [%p,%p]\n",ret.begin,ret.endnext);
   return ret;
 }
-static PSTRING _ff_add_str_to_buffer(PSTRING buf, const char* str) {
-  PSTRING ret = buf;
+static MPSTRING _ff_add_str_to_buffer(MPSTRING buf, const char* str) {
+  MPSTRING ret = buf;
   const char* s=str;
-  //tmpl_log(NULL,TMPL_LOG_ERROR,"_ff_add_str_to_buffer: called as [%p,%p]+[%s]\n",buf.begin,buf.endnext, str);
+  //tmpl_log(TMPL_LOG_ERROR,"_ff_add_str_to_buffer: called as [%p,%p]+[%s]\n",buf.begin,buf.endnext, str);
   while ('\0'!=*s) {*(ret.endnext++)=*s++;}
-  //tmpl_log(NULL,TMPL_LOG_ERROR,"_ff_add_str_to_buffer: ret = [%p,%p]\n",ret.begin,ret.endnext);
+  //tmpl_log(TMPL_LOG_ERROR,"_ff_add_str_to_buffer: ret = [%p,%p]\n",ret.begin,ret.endnext);
   return ret;
 }
-static PSTRING _ff_add_sep_to_buffer(PSTRING buf) {
-  PSTRING ret = buf;
+static MPSTRING _ff_add_sep_to_buffer(MPSTRING buf) {
+  MPSTRING ret = buf;
   if (ret.endnext>ret.begin && IS_FILE_SEP(*(ret.endnext-1))) return ret;
+#ifdef DIR_SEPARATOR_CHAR
+  *(ret.endnext++)=DIR_SEPARATOR_CHAR;
+#else
   *(ret.endnext++)='/';
+#endif
   return ret;
 }
-static PSTRING _ff_add_0_to_buffer(PSTRING buf) {
-  PSTRING ret = buf;
-  *(ret.endnext++)='\0';
-  return ret;
+static MPSTRING _ff_add_0_to_buffer(MPSTRING buf) {
+  *(buf.endnext++)='\0';
+  return buf;
 }
 static const char* _find_file (struct tmplpro_param* param, const char* filename, PSTRING extra_dir) {
   // TODO: finish it
-  char* HTML_TEMPLATE_ROOT = getenv("HTML_TEMPLATE_ROOT");
+  const char* HTML_TEMPLATE_ROOT = getenv("HTML_TEMPLATE_ROOT");
   size_t HTML_TEMPLATE_ROOT_length=0;
   size_t buffsize=0;
   char** pathlist=param->path;
-  PSTRING pbuf_begin, filepath;
+  MPSTRING pbuf_begin, filepath;
+
+  if (param->debug >= TMPL_LOG_DEBUG2) {
+    tmpl_log(TMPL_LOG_DEBUG2,"built-in _find_file: looking for %s extra dir = %.*s\n",filename, (int)(extra_dir.endnext-extra_dir.begin),extra_dir.begin);
+  }
 
   /* first check for a full path */
   if (_ff_is_absolute(filename) && _ff_exists(filename)) return _ff_canonical_path(filename);
 
-#if defined (_WIN32) || defined (WIN32)
+#if defined _WIN32 || defined __CYGWIN__
   /* no sense of prefixing C:\ or \\?\ */
   if (_ff_is_win_fully_qualified_path(filename)) return NULL;
 #endif
@@ -244,7 +262,8 @@ static const char* _find_file (struct tmplpro_param* param, const char* filename
   /* try the extra_path if one was specified */
   if (extra_dir.begin!=NULL) {
     filepath=_ff_add_pstr_to_buffer(pbuf_begin,extra_dir);
-    filepath=_ff_add_sep_to_buffer(filepath);
+    if (extra_dir.endnext-extra_dir.begin >0) 
+      filepath=_ff_add_sep_to_buffer(filepath);
     filepath=_ff_add_str_to_buffer(filepath,filename);
     filepath=_ff_add_0_to_buffer(filepath);
     if (_ff_exists(filepath.begin)) return _ff_canonical_path_from_buf(filepath);
@@ -253,7 +272,8 @@ static const char* _find_file (struct tmplpro_param* param, const char* filename
   /* try pre-prending HTML_Template_Root */
   if (HTML_TEMPLATE_ROOT!=NULL) {
     filepath=_ff_add_str_to_buffer(pbuf_begin,HTML_TEMPLATE_ROOT);
-    filepath=_ff_add_sep_to_buffer(filepath);
+    if (HTML_TEMPLATE_ROOT_length >0) 
+      filepath=_ff_add_sep_to_buffer(filepath);
     filepath=_ff_add_str_to_buffer(filepath,filename);
     filepath=_ff_add_0_to_buffer(filepath);
     if (_ff_exists(filepath.begin)) return _ff_canonical_path_from_buf(filepath);
@@ -263,8 +283,9 @@ static const char* _find_file (struct tmplpro_param* param, const char* filename
   pathlist=param->path;
   if (pathlist!=NULL) {
     while (NULL!=*pathlist) {
-      //tmpl_log(NULL,TMPL_LOG_ERROR,"try 'path' option list..: looking in [%s]\n",*pathlist);
+      //tmpl_log(TMPL_LOG_ERROR,"try 'path' option list..: looking in [%s]\n",*pathlist);
       filepath=_ff_add_str_to_buffer(pbuf_begin,*pathlist);
+      /* TODO: check *pathlist length */
       filepath=_ff_add_sep_to_buffer(filepath);
       filepath=_ff_add_str_to_buffer(filepath,filename);
       filepath=_ff_add_0_to_buffer(filepath);
@@ -282,8 +303,10 @@ static const char* _find_file (struct tmplpro_param* param, const char* filename
     if (pathlist!=NULL) {
       while (NULL!=*pathlist) {
 	filepath=_ff_add_str_to_buffer(pbuf_begin,HTML_TEMPLATE_ROOT);
-	filepath=_ff_add_sep_to_buffer(filepath);
+	if (HTML_TEMPLATE_ROOT_length >0) 
+	  filepath=_ff_add_sep_to_buffer(filepath);
 	filepath=_ff_add_str_to_buffer(filepath,*pathlist);
+	/* TODO: check *pathlist length */
 	filepath=_ff_add_sep_to_buffer(filepath);
 	filepath=_ff_add_str_to_buffer(filepath,filename);
 	filepath=_ff_add_0_to_buffer(filepath);
@@ -300,7 +323,10 @@ static const char* BACKCALL stub_find_file_func(ABSTRACT_FINDFILE* param,const c
   const char* filepath;
   PSTRING extra_path ={NULL,NULL};
 
-  if (filename == last_visited_file) tmpl_log(NULL,TMPL_LOG_ERROR,"built-in find_file: internal error: buffer clash for %s\n",filename);
+  if (filename == last_visited_file) tmpl_log(TMPL_LOG_ERROR,"built-in find_file: internal error: buffer clash for %s\n",filename);
+
+  if (((struct tmplpro_param*)param)->debug>= TMPL_LOG_DEBUG)
+    tmpl_log(TMPL_LOG_DEBUG,"built-in find_file: looking for %s last_visited_file = %s\n",filename, last_visited_file);
 
   // look for the included file...
   if (last_visited_file!=NULL && ! ((struct tmplpro_param*) param)->search_path_on_include) {
@@ -309,19 +335,19 @@ static const char* BACKCALL stub_find_file_func(ABSTRACT_FINDFILE* param,const c
   filepath = _find_file((struct tmplpro_param*)param,filename,extra_path);
   if (filepath==NULL) {
     char** path=((struct tmplpro_param*)param)->path;
-    tmpl_log(NULL,TMPL_LOG_ERROR,"built-in find_file: can't find file %s", filename);
-    if (NULL!=last_visited_file) tmpl_log(NULL,TMPL_LOG_ERROR," (included from %s)", last_visited_file);
+    tmpl_log(TMPL_LOG_ERROR,"built-in find_file: can't find file %s", filename);
+    if (NULL!=last_visited_file) tmpl_log(TMPL_LOG_ERROR," (included from %s)", last_visited_file);
     if (NULL!=path) {
-      tmpl_log(NULL,TMPL_LOG_ERROR," with path = [");
+      tmpl_log(TMPL_LOG_ERROR," with path = [");
       while (NULL!=*path) {
-	tmpl_log(NULL,TMPL_LOG_ERROR," '%s'",*path);
+	tmpl_log(TMPL_LOG_ERROR," '%s'",*path);
 	path++;
       }
-      tmpl_log(NULL,TMPL_LOG_ERROR," ]");
+      tmpl_log(TMPL_LOG_ERROR," ]");
     } else {
-      tmpl_log(NULL,TMPL_LOG_ERROR," with empty path list");
+      tmpl_log(TMPL_LOG_ERROR," with empty path list");
     }
-    tmpl_log(NULL,TMPL_LOG_ERROR,"\n");
+    tmpl_log(TMPL_LOG_ERROR,"\n");
     return NULL;
   } else {
     return filepath;

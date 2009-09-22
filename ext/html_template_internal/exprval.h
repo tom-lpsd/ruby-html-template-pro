@@ -19,6 +19,8 @@ struct exprval {
   } val;
 };
 
+#define NEW_EXPRVAL(X) { X }
+
 #endif /* exprval.h */
 
 /*

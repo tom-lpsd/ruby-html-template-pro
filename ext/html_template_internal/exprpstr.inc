@@ -114,7 +114,7 @@ re_notlike(PSTRING a, PSTRING b) {
 static
 int 
 re_like(PSTRING a, PSTRING b) {
-    tmpl_log(NULL,TMPL_LOG_ERROR," (sorry, Stanislav Yadykin regexp extension is disabled at compile time) \n");
+    tmpl_log(TMPL_LOG_ERROR," (sorry, Stanislav Yadykin regexp extension is disabled at compile time) \n");
   return 0;
 }
 #else
@@ -134,7 +134,7 @@ re_like(PSTRING a, PSTRING b) {
   re = pcre_compile(pattern, 0, &error, &erroffset, NULL); /* default character set */
   free(pattern);
   if (re==NULL) {
-    tmpl_log(NULL,TMPL_LOG_ERROR, "PCRE compilation failed at offset %d: %s\n",
+    tmpl_log(TMPL_LOG_ERROR, "PCRE compilation failed at offset %d: %s\n",
       erroffset, error);
     return 0;
   }

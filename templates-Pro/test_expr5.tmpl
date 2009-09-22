@@ -1,5 +1,18 @@
 <HTML><BODY>
-<H1> test_expr5 (include) </H1>
-<tmpl_include EXPR="sprintf('test_if%d.tmpl',TWO)">
-<tmpl_include EXPR="FILE">
+<H1> test on string compare </H1>
+true:<TMPL_VAR EXPR="'abc' eq 'abc'">
+false:<TMPL_VAR EXPR="'ab' eq 'abc'">
+false:<TMPL_VAR EXPR="'def' eq 'abc'">
+
+false:<TMPL_VAR EXPR="ONE eq TWO">
+false:<TMPL_VAR EXPR="(ONE eq TWO)">
+
+false:<TMPL_VAR EXPR="1 eq 2">
+false:<TMPL_VAR EXPR="'1' eq 2">
+false:<TMPL_VAR EXPR="2 eq '1'">
+
+testing unescape string
+false:<TMPL_VAR EXPR="'\'1' eq '\'2'">
+true:<TMPL_VAR EXPR="'\'1' ne '\'2'">
+
 </body></html>

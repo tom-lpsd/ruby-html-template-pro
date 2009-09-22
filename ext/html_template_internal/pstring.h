@@ -15,8 +15,8 @@
 
     \code
     typedef struct PSTRING {
-      char* begin;
-      char* endnext;
+      const char* begin;
+      const char* endnext;
     } PSTRING;
     \endcode
 
@@ -27,22 +27,34 @@
 
     \warning It is possible for empty string to have begin == endnext == NULL.
     \warning Contents of the memory area, passed as PSTRING, should always be treated as const.
-    \warning Contents of the memory area, passed as PSTRING, may be destroyed after the callback function
+    \warning Contents of the memory area, passed as PSTRING, can be destroyed after the callback function
     completed. To be used afterwards the string content should be copied.
  */
 
 typedef struct PSTRING {
-  char* begin;   /*!< pointer to begin of the string. */
-  char* endnext; /*!< pointer to the byte next to the last char of the string. */
+  const char* begin;   /*!< pointer to begin of the string. */
+  const char* endnext; /*!< pointer to the byte next to the last char of the string. */
 } PSTRING;
 
-/* temporary hack for migration to const PSTRING */
-#define P_UNCONST_CAST (char*)
+/** \struct MPSTRING
+
+    \brief Modifiable PSTRING.
+
+    \code
+    typedef struct MPSTRING {
+      char* begin;
+      char* endnext;
+    } PSTRING;
+    \endcode
+
+    The same as PSTING, but in non-constant memory.
+
+ */
+
 
 typedef struct MPSTRING {
   char* begin;   /*!< pointer to begin of the string. */
   char* endnext; /*!< pointer to the byte next to the last char of the string. */
 } MPSTRING;
-
 
 #endif /* pstring.h */

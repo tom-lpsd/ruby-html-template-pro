@@ -72,6 +72,25 @@ TMPLPRO_API int APICALL tmplpro_get_option_debug(struct tmplpro_param*);
 */
 TMPLPRO_API void APICALL tmplpro_set_option_debug(struct tmplpro_param*,int);
 
+/*! \fn int tmplpro_get_option_tmpl_var_case(struct tmplpro_param*);
+    \brief get value of tmpl_var_case option.
+
+    see HTML::Template::Pro perl module documentation for tmpl_var_case option.
+
+    \param param -- pointer to an internal state.
+*/
+TMPLPRO_API int APICALL tmplpro_get_option_tmpl_var_case(struct tmplpro_param*);
+
+/*! \fn void tmplpro_set_option_tmpl_var_case(struct tmplpro_param*,int);
+    \brief set value of tmpl_var_case option.
+
+    see HTML::Template::Pro perl module documentation for tmpl_var_case option.
+
+    \param param -- pointer to an internal state.
+    \param val -- value to set.
+*/
+TMPLPRO_API void APICALL tmplpro_set_option_tmpl_var_case(struct tmplpro_param*,int);
+
 /*! \fn int tmplpro_get_option_no_includes(struct tmplpro_param*);
     \brief get value of no_includes option.
 
@@ -90,25 +109,6 @@ TMPLPRO_API int APICALL tmplpro_get_option_no_includes(struct tmplpro_param*);
     \param val -- value to set.
 */
 TMPLPRO_API void APICALL tmplpro_set_option_no_includes(struct tmplpro_param*,int);
-
-/*! \fn int tmplpro_get_option_case_sensitive(struct tmplpro_param*);
-    \brief get value of case_sensitive option.
-
-    see HTML::Template::Pro perl module documentation for case_sensitive option.
-
-    \param param -- pointer to an internal state.
-*/
-TMPLPRO_API int APICALL tmplpro_get_option_case_sensitive(struct tmplpro_param*);
-
-/*! \fn void tmplpro_set_option_case_sensitive(struct tmplpro_param*,int);
-    \brief set value of case_sensitive option.
-
-    see HTML::Template::Pro perl module documentation for case_sensitive option.
-
-    \param param -- pointer to an internal state.
-    \param val -- value to set.
-*/
-TMPLPRO_API void APICALL tmplpro_set_option_case_sensitive(struct tmplpro_param*,int);
 
 /*! \fn int tmplpro_get_option_loop_context_vars(struct tmplpro_param*);
     \brief get value of loop_context_vars option.
@@ -281,25 +281,6 @@ TMPLPRO_API char** APICALL tmplpro_get_option_path(struct tmplpro_param*);
 */
 TMPLPRO_API void APICALL tmplpro_set_option_path(struct tmplpro_param*,char**);
 
-/*! \fn int tmplpro_get_option_die_on_bad_params(struct tmplpro_param*);
-    \brief get value of die_on_bad_params option.
-
-    see HTML::Template::Pro perl module documentation for die_on_bad_params option.
-
-    \param param -- pointer to an internal state.
-*/
-TMPLPRO_API int APICALL tmplpro_get_option_die_on_bad_params(struct tmplpro_param*);
-
-/*! \fn void tmplpro_set_option_die_on_bad_params(struct tmplpro_param*,int);
-    \brief set value of die_on_bad_params option.
-
-    see HTML::Template::Pro perl module documentation for die_on_bad_params option.
-
-    \param param -- pointer to an internal state.
-    \param val -- value to set.
-*/
-TMPLPRO_API void APICALL tmplpro_set_option_die_on_bad_params(struct tmplpro_param*,int);
-
 /*! \fn writer_functype tmplpro_get_option_WriterFuncPtr(struct tmplpro_param*);
     \brief get address of callback of ::writer_functype
     \param param -- pointer to an internal state.
@@ -430,44 +411,18 @@ TMPLPRO_API unload_file_functype APICALL tmplpro_get_option_UnloadFileFuncPtr(st
 */
 TMPLPRO_API void APICALL tmplpro_set_option_UnloadFileFuncPtr(struct tmplpro_param*,unload_file_functype);
 
-/*! \fn select_loop_scope_functype tmplpro_get_option_SelectLoopScopeFuncPtr(struct tmplpro_param*);
-    \brief get address of callback of ::select_loop_scope_functype
+/*! \fn exit_loop_scope_functype tmplpro_get_option_ExitLoopScopeFuncPtr(struct tmplpro_param*);
+    \brief get address of callback of ::exit_loop_scope_functype
     \param param -- pointer to an internal state.
 */
-TMPLPRO_API select_loop_scope_functype APICALL tmplpro_get_option_SelectLoopScopeFuncPtr(struct tmplpro_param*);
+TMPLPRO_API exit_loop_scope_functype APICALL tmplpro_get_option_ExitLoopScopeFuncPtr(struct tmplpro_param*);
 
-/*! \fn void tmplpro_set_option_SelectLoopScopeFuncPtr(struct tmplpro_param*,select_loop_scope_functype);
-    \brief set callback of ::select_loop_scope_functype
+/*! \fn void tmplpro_set_option_ExitLoopScopeFuncPtr(struct tmplpro_param*,exit_loop_scope_functype);
+    \brief set callback of ::exit_loop_scope_functype
     \param param -- pointer to an internal state.
     \param val -- callback address to set.
 */
-TMPLPRO_API void APICALL tmplpro_set_option_SelectLoopScopeFuncPtr(struct tmplpro_param*,select_loop_scope_functype);
-
-/*! \fn end_loop_functype tmplpro_get_option_EndLoopFuncPtr(struct tmplpro_param*);
-    \brief get address of callback of ::end_loop_functype
-    \param param -- pointer to an internal state.
-*/
-TMPLPRO_API end_loop_functype APICALL tmplpro_get_option_EndLoopFuncPtr(struct tmplpro_param*);
-
-/*! \fn void tmplpro_set_option_EndLoopFuncPtr(struct tmplpro_param*,end_loop_functype);
-    \brief set callback of ::end_loop_functype
-    \param param -- pointer to an internal state.
-    \param val -- callback address to set.
-*/
-TMPLPRO_API void APICALL tmplpro_set_option_EndLoopFuncPtr(struct tmplpro_param*,end_loop_functype);
-
-/*! \fn ABSTRACT_MAP* tmplpro_get_option_root_param_map(struct tmplpro_param*);
-    \brief get value of an external pointer that will be passed to a callback. see ::ABSTRACT_MAP.
-    \param param -- pointer to an internal state.
-*/
-TMPLPRO_API ABSTRACT_MAP* APICALL tmplpro_get_option_root_param_map(struct tmplpro_param*);
-
-/*! \fn void tmplpro_set_option_root_param_map(struct tmplpro_param*,ABSTRACT_MAP*);
-    \brief set external pointer that will be passed to a callback. see ::ABSTRACT_MAP.
-    \param param -- pointer to an internal state.
-    \param val -- value to set.
-*/
-TMPLPRO_API void APICALL tmplpro_set_option_root_param_map(struct tmplpro_param*,ABSTRACT_MAP*);
+TMPLPRO_API void APICALL tmplpro_set_option_ExitLoopScopeFuncPtr(struct tmplpro_param*,exit_loop_scope_functype);
 
 /*! \fn ABSTRACT_WRITER* tmplpro_get_option_ext_writer_state(struct tmplpro_param*);
     \brief get value of an external pointer that will be passed to a callback. see ::ABSTRACT_WRITER.
@@ -507,6 +462,19 @@ TMPLPRO_API ABSTRACT_FINDFILE* APICALL tmplpro_get_option_ext_findfile_state(str
     \param val -- value to set.
 */
 TMPLPRO_API void APICALL tmplpro_set_option_ext_findfile_state(struct tmplpro_param*,ABSTRACT_FINDFILE*);
+
+/*! \fn ABSTRACT_DATASTATE* tmplpro_get_option_ext_data_state(struct tmplpro_param*);
+    \brief get value of an external pointer that will be passed to a callback. see ::ABSTRACT_DATASTATE.
+    \param param -- pointer to an internal state.
+*/
+TMPLPRO_API ABSTRACT_DATASTATE* APICALL tmplpro_get_option_ext_data_state(struct tmplpro_param*);
+
+/*! \fn void tmplpro_set_option_ext_data_state(struct tmplpro_param*,ABSTRACT_DATASTATE*);
+    \brief set external pointer that will be passed to a callback. see ::ABSTRACT_DATASTATE.
+    \param param -- pointer to an internal state.
+    \param val -- value to set.
+*/
+TMPLPRO_API void APICALL tmplpro_set_option_ext_data_state(struct tmplpro_param*,ABSTRACT_DATASTATE*);
 
 /*! \fn ABSTRACT_CALLER* tmplpro_get_option_ext_calluserfunc_state(struct tmplpro_param*);
     \brief get value of an external pointer that will be passed to a callback. see ::ABSTRACT_CALLER.

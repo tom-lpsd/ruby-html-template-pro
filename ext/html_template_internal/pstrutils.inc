@@ -18,10 +18,10 @@ lowercase_pstring (pbuffer* pBuffer ,PSTRING pstring) {
   size_t size=pstring.endnext-pstring.begin;
   char* buf=pbuffer_resize(pBuffer, size+1);
   char* inbuf=buf;
-  char* i=pstring.begin;
+  const char* i=pstring.begin;
   PSTRING retval;
   while (i<pstring.endnext) {
-    *inbuf++=tolower(*i++);
+    *inbuf++=tolower((unsigned char) *i++);
   }
   *inbuf=0;
   retval.begin=buf;
@@ -42,6 +42,24 @@ lowercase_pstring_inplace (PSTRING pstring) {
 */
 
 static
+PSTRING
+uppercase_pstring (pbuffer* pBuffer ,PSTRING pstring) {
+  size_t size=pstring.endnext-pstring.begin;
+  char* buf=pbuffer_resize(pBuffer, size+1);
+  char* inbuf=buf;
+  const char* i=pstring.begin;
+  PSTRING retval;
+  while (i<pstring.endnext) {
+    *inbuf++=toupper((unsigned char) *i++);
+  }
+  *inbuf=0;
+  retval.begin=buf;
+  retval.endnext=buf+size;
+  return retval;
+}
+
+
+static
 int
 is_pstring_true (PSTRING s) {
   if (s.begin == NULL || s.begin == s.endnext) return 0;
@@ -56,14 +74,14 @@ static
 PSTRING 
 escape_pstring (pbuffer* StrBuffer, PSTRING pstring, int escapeopt) {
   char* buf=pbuffer_resize(StrBuffer, 2*(pstring.endnext-pstring.begin+1));
-  char* curpos=pstring.begin;
+  const char* curpos=pstring.begin;
   size_t offset=0;
   size_t buflen=pbuffer_size(StrBuffer);
   PSTRING retval;
   switch (escapeopt) {
   case HTML_TEMPLATE_OPT_ESCAPE_HTML:
     while (curpos<pstring.endnext) {
-      char curchar=*curpos++;
+      unsigned char curchar=*curpos++;
       int bufdelta=1;
       if (offset>=buflen) {
 	buf=pbuffer_resize(StrBuffer, 2*offset);
@@ -83,7 +101,7 @@ escape_pstring (pbuffer* StrBuffer, PSTRING pstring, int escapeopt) {
     break;
   case HTML_TEMPLATE_OPT_ESCAPE_JS:
     while (curpos<pstring.endnext) {
-      char curchar=*curpos++;
+      unsigned char curchar=*curpos++;
       int bufdelta=1;
       if (offset>=buflen) {
 	buf=pbuffer_resize(StrBuffer, 2*offset);

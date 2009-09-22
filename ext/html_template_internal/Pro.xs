@@ -1,4 +1,5 @@
 #define PERLIO_NOT_STDIO 0    /* For co-existence with stdio only */
+#define PERL_NO_GET_CONTEXT     /* we want efficiency */
 
 #ifdef __cplusplus
 extern "C" {
@@ -27,6 +28,7 @@ struct perl_callback_state {
   SV* perl_obj_self_ptr;
   AV* filtered_tmpl_array;
   AV* pool_for_perl_vars;
+  int force_untaint;
 };
 
 static 
@@ -34,69 +36,137 @@ int debuglevel=0;
 
 /* endnext points on next character to end of interval as in c++ */
 static void write_chars_to_file (ABSTRACT_WRITER* OutputFile, const char* begin, const char* endnext) {
-  register const char* i;
-  for (i=begin; i<endnext; i++) {
-    PerlIO_putc((PerlIO*)OutputFile,*i);
-  }
+  dTHX;       /* fetch context */
+  PerlIO_write((PerlIO*)OutputFile,begin, endnext-begin);
 }
 
 /* endnext points on next to end character of the interval */
 static void write_chars_to_string (ABSTRACT_WRITER* OutputString, const char* begin, const char* endnext) {
+  dTHX;       /* fetch context */
   sv_catpvn((SV*)OutputString, begin, endnext-begin);
 }
 
 static
-ABSTRACT_VALUE* get_ABSTRACT_VALUE_impl (ABSTRACT_MAP* ptr_HV, PSTRING name) {
+ABSTRACT_VALUE* get_ABSTRACT_VALUE_impl (ABSTRACT_DATASTATE* none, ABSTRACT_MAP* ptr_HV, PSTRING name) {
+  dTHX;       /* fetch context */
   return hv_fetch((HV*) ptr_HV,name.begin, name.endnext-name.begin, 0);
 }
 
+static 
+SV* 
+call_coderef (SV* coderef) {
+  SV* SVretval;
+  I32 count;
+  dTHX;       /* fetch context */
+  /* TODO: G_EVAL and error handler */
+  dSP;
+
+  /* let perl clean up mortals after the end of output() call
+     ENTER;
+     SAVETMPS;*/
+
+  PUSHMARK(SP);
+  PUTBACK; /* in fact, isn't needed -- nothing is pushed and G_NOARGS is used */
+
+  count = call_sv(coderef, G_EVAL|G_SCALAR|G_NOARGS);
+  SPAGAIN;
+    
+  /* Check the eval first */
+  if (SvTRUE(ERRSV))
+    {
+      STRLEN n_a;
+      printf ("Pro.xs: param tree code reference exited abnormally - %s\n", SvPV(ERRSV, n_a));
+      SVretval=POPs; /* undef */
+    }
+  else
+    {
+      if (count != 1)
+	croak("Pro.xs: internal context error (got %d) while calling CODE reference\n", count);
+      SVretval=POPs;
+    }
+
+  PUTBACK;
+  /* let perl clean up mortals after the end of output() call
+     FREETMPS;
+     LEAVE;*/
+  return SVretval;
+}
+
 static
-PSTRING ABSTRACT_VALUE2PSTRING_impl (ABSTRACT_VALUE* valptr) {
+PSTRING ABSTRACT_VALUE2PSTRING_impl (ABSTRACT_DATASTATE* callback_state, ABSTRACT_VALUE* valptr) {
   STRLEN len=0;
   PSTRING retval={NULL,NULL};
   SV* SVval;
+  dTHX;       /* fetch context */
   if (valptr==NULL) return retval;
   SVval = *((SV**) valptr);
-  if (SvOK(SVval)) {
-    retval.begin=SvPV(SVval, len);
-    retval.endnext=retval.begin+len;
+  SvGETMAGIC(SVval);
+  if (SvOK(SVval) && SvROK(SVval)) {
+    if (SvTYPE(SvRV(SVval))==SVt_PVCV) {
+      SVval = call_coderef(SVval);
+    } else {
+      SVval = SvRV(SVval);
+    }
+    SvGETMAGIC(SVval);
   }
+  if (!SvOK(SVval)) return retval;
+  /* TODO param resource deallocation */
+  if (((struct perl_callback_state*) callback_state)->force_untaint && SVval && SvTAINTED(SVval))
+    croak("force_untaint: got tainted value %" SVf, SVval);
+
+  retval.begin=SvPV(SVval, len);
+  retval.endnext=retval.begin+len;
   return retval;
 }
 
 static
-int is_ABSTRACT_VALUE_true_impl (ABSTRACT_VALUE* valptr) {
+int is_ABSTRACT_VALUE_true_impl (ABSTRACT_DATASTATE* none, ABSTRACT_VALUE* valptr) {
   SV* SVval;
+  dTHX;       /* fetch context */
   if (valptr==NULL) return 0;
   SVval = *((SV**) valptr);
   if (SvROK(SVval)) {
+    if ((SvTYPE(SvRV(SVval)) == SVt_PVCV)) {
+      SVval = call_coderef(SVval);
+    } else
     /* arrayptr : in HTML::Template, true if len(array)>0 */
-    if ((SvTYPE(SvRV(SVval)) == SVt_PVAV)
+      if ((SvTYPE(SvRV(SVval)) == SVt_PVAV)
 	&& (av_len((AV *)SvRV(SVval))<0)) {
       return 0;
     } else return 1;
   }
+  /* in any place where I receive a value of which I don't know the origin, 
+     I should call SvGETMAGIC first. */
+  SvGETMAGIC(SVval);
   if(SvTRUE(SVval)) return 1;
   return 0;
 }
 
 static 
-ABSTRACT_ARRAY* ABSTRACT_VALUE2ABSTRACT_ARRAY_impl (ABSTRACT_VALUE* abstrvalptr) {
-  SV** valptr = (SV**) abstrvalptr;
-  if ((!SvROK(*valptr)) || (SvTYPE(SvRV(*valptr)) != SVt_PVAV)) return 0;
-  return (ABSTRACT_ARRAY*) SvRV(*valptr);
+ABSTRACT_ARRAY* ABSTRACT_VALUE2ABSTRACT_ARRAY_impl (ABSTRACT_DATASTATE* none, ABSTRACT_VALUE* abstrvalptr) {
+  SV* val = *((SV**) abstrvalptr);
+  dTHX;       /* fetch context */
+  SvGETMAGIC(val);
+  if ((!SvROK(val)) || (SvTYPE(SvRV(val)) != SVt_PVAV)) return 0;
+  return (ABSTRACT_ARRAY*) SvRV(val);
 }
 
 static 
-int get_ABSTRACT_ARRAY_length_impl (ABSTRACT_ARRAY* loops_AV) {
+int get_ABSTRACT_ARRAY_length_impl (ABSTRACT_DATASTATE* none, ABSTRACT_ARRAY* loops_AV) {
+  dTHX;       /* fetch context */
+  SvGETMAGIC((SV *)loops_AV);
   return av_len((AV *)loops_AV)+1;
 }
 
 static 
-ABSTRACT_MAP* get_ABSTRACT_MAP_impl (ABSTRACT_ARRAY* loops_AV, int loop) {
-  SV** arrayvalptr;
-  arrayvalptr=av_fetch((AV*)loops_AV, loop, 0);
-  if ((arrayvalptr==NULL) || (!SvROK(*arrayvalptr)) || (SvTYPE(SvRV(*arrayvalptr)) != SVt_PVHV)) {
+ABSTRACT_MAP* get_ABSTRACT_MAP_impl (ABSTRACT_DATASTATE* none, ABSTRACT_ARRAY* loops_AV, int loop) {
+  dTHX;       /* fetch context */
+  SV* val;
+  SV** arrayvalptr = av_fetch((AV*)loops_AV, loop, 0);
+  if (arrayvalptr==NULL) return NULL;
+  val = *arrayvalptr;
+  SvGETMAGIC(val);
+  if ((!SvROK(val)) || (SvTYPE(SvRV(val)) != SVt_PVHV)) {
     return NULL;
   } else {
     return (ABSTRACT_MAP *)SvRV(*arrayvalptr);
@@ -105,6 +175,7 @@ ABSTRACT_MAP* get_ABSTRACT_MAP_impl (ABSTRACT_ARRAY* loops_AV, int loop) {
 
 static 
 const char* get_filepath (ABSTRACT_FINDFILE* callback_state, const char* filename, const char* prevfilename) {
+  dTHX;       /* fetch context */
   dSP ;
   int count ;
   STRLEN len;
@@ -144,6 +215,7 @@ const char* get_filepath (ABSTRACT_FINDFILE* callback_state, const char* filenam
 
 static 
 PSTRING load_file (ABSTRACT_FILTER* callback_state, const char* filepath) {
+  dTHX;       /* fetch context */
   dSP ;
   int count ;
   STRLEN len;
@@ -177,8 +249,9 @@ PSTRING load_file (ABSTRACT_FILTER* callback_state, const char* filepath) {
 
 static
 int unload_file(ABSTRACT_FILTER* callback_state, PSTRING memarea) {
+  dTHX;       /* fetch context */
   /*
-   * scalar is already mortal so we don't need dereference it
+   * scalar is already mortal so we don't need to dereference it
    * SvREFCNT_dec(SvRV(av_pop(((struct perl_callback_state*)callback_state)->filtered_tmpl_array)));
    */
   av_pop(((struct perl_callback_state*)callback_state)->filtered_tmpl_array); 
@@ -187,6 +260,7 @@ int unload_file(ABSTRACT_FILTER* callback_state, PSTRING memarea) {
 
 static 
 ABSTRACT_USERFUNC* is_expr_userfnc (ABSTRACT_FUNCMAP* FuncHash, PSTRING name) {
+  dTHX;       /* fetch context */
   SV** hashvalptr=hv_fetch((HV *) FuncHash, name.begin, name.endnext-name.begin, 0);
   return hashvalptr;
 }
@@ -194,6 +268,7 @@ ABSTRACT_USERFUNC* is_expr_userfnc (ABSTRACT_FUNCMAP* FuncHash, PSTRING name) {
 static 
 void free_expr_arglist(ABSTRACT_ARGLIST* arglist)
 {
+  dTHX;       /* fetch context */
   if (NULL!=arglist) {
     av_undef((AV*) arglist);
     SvREFCNT_dec(arglist);
@@ -203,12 +278,14 @@ void free_expr_arglist(ABSTRACT_ARGLIST* arglist)
 static 
 ABSTRACT_ARGLIST* init_expr_arglist(ABSTRACT_CALLER* none)
 {
+  dTHX;       /* fetch context */
   return newAV();
 }
 
 static 
 void push_expr_arglist(ABSTRACT_ARGLIST* arglist, ABSTRACT_EXPRVAL* exprval)
 {
+  dTHX;       /* fetch context */
   SV* val=NULL;
   int exprval_type=tmplpro_get_expr_type(exprval);
   PSTRING parg;
@@ -225,6 +302,7 @@ void push_expr_arglist(ABSTRACT_ARGLIST* arglist, ABSTRACT_EXPRVAL* exprval)
 
 static 
 void call_expr_userfnc (ABSTRACT_CALLER* callback_state, ABSTRACT_ARGLIST* arglist, ABSTRACT_USERFUNC* hashvalptr, ABSTRACT_EXPRVAL* exprval) {
+  dTHX;       /* fetch context */
   dSP ;
   char* empty="";
   char* strval;
@@ -260,6 +338,7 @@ void call_expr_userfnc (ABSTRACT_CALLER* callback_state, ABSTRACT_ARGLIST* argli
   SPAGAIN ;
   if (numretval) {
     svretval=POPs;
+    SvGETMAGIC(svretval);
     if (SvOK(svretval)) {
       if (SvIOK(svretval)) {
 	tmplpro_set_expr_as_int64(exprval,SvIV(svretval));
@@ -276,7 +355,7 @@ void call_expr_userfnc (ABSTRACT_CALLER* callback_state, ABSTRACT_ARGLIST* argli
 	tmplpro_set_expr_as_pstring(exprval,retvalpstr);
       }
     } else {
-      if (debuglevel) warn ("user defined function returned undef\n");
+      if (debuglevel>1) warn ("user defined function returned undef\n");
     }
   } else {
     if (debuglevel) warn ("user defined function returned nothing\n");
@@ -291,21 +370,21 @@ void call_expr_userfnc (ABSTRACT_CALLER* callback_state, ABSTRACT_ARGLIST* argli
 typedef void (*set_int_option_functype) (struct tmplpro_param*, int);
 
 static 
-void set_integer_from_hash(HV* TheHash, char* key, struct tmplpro_param* param, set_int_option_functype setfunc) {
+void set_integer_from_hash(pTHX_ HV* TheHash, char* key, struct tmplpro_param* param, set_int_option_functype setfunc) {
   SV** hashvalptr=hv_fetch(TheHash, key, strlen(key), 0);
   if (hashvalptr==NULL) return;
   setfunc(param,SvIV(*hashvalptr));
 }
 
 static 
-int get_integer_from_hash(HV* TheHash, char* key) {
+int get_integer_from_hash(pTHX_ HV* TheHash, char* key) {
   SV** hashvalptr=hv_fetch(TheHash, key, strlen(key), 0);
   if (hashvalptr==NULL) return 0;
   return SvIV(*hashvalptr);
 }
 
 static 
-PSTRING get_string_from_hash(HV* TheHash, char* key) {
+PSTRING get_string_from_hash(pTHX_ HV* TheHash, char* key) {
   SV** hashvalptr=hv_fetch(TheHash, key, strlen(key), 0);
   STRLEN len=0;
   char * begin;
@@ -325,7 +404,7 @@ PSTRING get_string_from_hash(HV* TheHash, char* key) {
 
 
 static 
-char** get_array_of_strings_from_hash(HV* TheHash, char* key, struct perl_callback_state* callback_state) {
+char** get_array_of_strings_from_hash(pTHX_ HV* TheHash, char* key, struct perl_callback_state* callback_state) {
   SV** valptr=hv_fetch(TheHash, key, strlen(key), 0);
   int amax;
   char** path=NULL;
@@ -362,6 +441,7 @@ char** get_array_of_strings_from_hash(HV* TheHash, char* key, struct perl_callba
 
 static 
 struct tmplpro_param* process_tmplpro_options (struct perl_callback_state* callback_state) {
+  dTHX;       /* fetch context */
   HV* SelfHash;
   SV** hashvalptr;
   const char* tmpstring;
@@ -398,6 +478,7 @@ struct tmplpro_param* process_tmplpro_options (struct perl_callback_state* callb
   tmplpro_set_option_ext_findfile_state(param,callback_state);
   tmplpro_set_option_ext_filter_state(param,callback_state);
   tmplpro_set_option_ext_calluserfunc_state(param,callback_state);
+  tmplpro_set_option_ext_data_state(param,callback_state);
   /*  end setting perl globals */
 
   if ((!SvROK(PerlSelfPtr)) || (SvTYPE(SvRV(PerlSelfPtr)) != SVt_PVHV))
@@ -407,8 +488,8 @@ struct tmplpro_param* process_tmplpro_options (struct perl_callback_state* callb
   SelfHash=(HV *)SvRV(PerlSelfPtr);
 
   /* checking main arguments */
-  filename=get_string_from_hash(SelfHash,"filename");
-  scalarref=get_string_from_hash(SelfHash,"scalarref");
+  filename=get_string_from_hash(aTHX_ SelfHash,"filename");
+  scalarref=get_string_from_hash(aTHX_ SelfHash,"scalarref");
   tmplpro_set_option_filename(param, filename.begin);
   tmplpro_set_option_scalarref(param, scalarref);
   if (filename.begin==NULL && scalarref.begin==NULL) {
@@ -423,12 +504,24 @@ struct tmplpro_param* process_tmplpro_options (struct perl_callback_state* callb
   /* end setting expr_func */
 
   /* setting param_map */
+  tmplpro_clear_option_param_map(param);
+  hashvalptr=hv_fetch(SelfHash, "associate", 9, 0); /* 9=strlen("associate") */
+  if (hashvalptr!=NULL && SvROK(*hashvalptr) && (SvTYPE(SvRV(*hashvalptr)) == SVt_PVAV)) {
+    AV* associate = (AV*) SvRV(*hashvalptr);
+    I32 i = av_len(associate);
+    SV** arrayvalptr;
+    while (i>=0) {
+      arrayvalptr = av_fetch(associate, i, 0);
+      if (arrayvalptr!=NULL && SvROK(*arrayvalptr))
+	tmplpro_push_option_param_map(param, (ABSTRACT_MAP *)SvRV(*arrayvalptr), 0);
+      i--;
+    }
+  }
   hashvalptr=hv_fetch(SelfHash, "param_map", 9, 0); /* 9=strlen("param_map") */
+  /* TODO param deallocation on warn/die */
   if (!hashvalptr || !SvROK(*hashvalptr) || (SvTYPE(SvRV(*hashvalptr)) != SVt_PVHV))
     die("FATAL:output:param_map not found");
-
-  tmplpro_set_option_root_param_map(param,  (HV *)SvRV(*hashvalptr));
-
+  tmplpro_push_option_param_map(param, (ABSTRACT_MAP *)SvRV(*hashvalptr), 0);
   /* end setting param_map */
 
   /* setting filter */
@@ -438,20 +531,23 @@ struct tmplpro_param* process_tmplpro_options (struct perl_callback_state* callb
   if (av_len((AV*)SvRV(*hashvalptr))>=0) tmplpro_set_option_filters(param, 1);
   /* end setting param_map */
 
-  set_integer_from_hash(SelfHash,"max_includes",param,tmplpro_set_option_max_includes);
-  set_integer_from_hash(SelfHash,"no_includes",param,tmplpro_set_option_no_includes);
-  set_integer_from_hash(SelfHash,"search_path_on_include",param,tmplpro_set_option_search_path_on_include);
-  set_integer_from_hash(SelfHash,"global_vars",param,tmplpro_set_option_global_vars);
-  set_integer_from_hash(SelfHash,"debug",param,tmplpro_set_option_debug);
+  if (!get_integer_from_hash(aTHX_ SelfHash,"case_sensitive")) {
+    tmplpro_set_option_tmpl_var_case(param, ASK_NAME_LOWERCASE);
+  }
+
+  set_integer_from_hash(aTHX_ SelfHash,"tmpl_var_case",param,tmplpro_set_option_tmpl_var_case);
+  set_integer_from_hash(aTHX_ SelfHash,"max_includes",param,tmplpro_set_option_max_includes);
+  set_integer_from_hash(aTHX_ SelfHash,"no_includes",param,tmplpro_set_option_no_includes);
+  set_integer_from_hash(aTHX_ SelfHash,"search_path_on_include",param,tmplpro_set_option_search_path_on_include);
+  set_integer_from_hash(aTHX_ SelfHash,"global_vars",param,tmplpro_set_option_global_vars);
+  set_integer_from_hash(aTHX_ SelfHash,"debug",param,tmplpro_set_option_debug);
   debuglevel = tmplpro_get_option_debug(param);
-  set_integer_from_hash(SelfHash,"loop_context_vars",param,tmplpro_set_option_loop_context_vars);
-  set_integer_from_hash(SelfHash,"case_sensitive",param,tmplpro_set_option_case_sensitive);
-  set_integer_from_hash(SelfHash,"path_like_variable_scope",param,tmplpro_set_option_path_like_variable_scope);
+  set_integer_from_hash(aTHX_ SelfHash,"loop_context_vars",param,tmplpro_set_option_loop_context_vars);
+  set_integer_from_hash(aTHX_ SelfHash,"path_like_variable_scope",param,tmplpro_set_option_path_like_variable_scope);
   /* still unsupported */
-  set_integer_from_hash(SelfHash,"strict",param,tmplpro_set_option_strict);
-  set_integer_from_hash(SelfHash,"die_on_bad_params",param,tmplpro_set_option_die_on_bad_params);
+  set_integer_from_hash(aTHX_ SelfHash,"strict",param,tmplpro_set_option_strict);
  
-  tmpstring=get_string_from_hash(SelfHash,"default_escape").begin;
+  tmpstring=get_string_from_hash(aTHX_ SelfHash,"default_escape").begin;
   if (tmpstring && *tmpstring) {
     switch (*tmpstring) {
     case '1': case 'H': case 'h': 	/* HTML*/
@@ -473,10 +569,14 @@ struct tmplpro_param* process_tmplpro_options (struct perl_callback_state* callb
 
   }
 
-  if (get_integer_from_hash(SelfHash,"__use_perl_find_file")) {
+  /* setting callback_state */
+  callback_state->force_untaint=get_integer_from_hash(aTHX_ SelfHash,"force_untaint");
+  /* end setting callback_state */
+
+  if (get_integer_from_hash(aTHX_ SelfHash,"__use_perl_find_file")) {
     tmplpro_set_option_FindFileFuncPtr(param, &get_filepath);
   } else {
-    tmplpro_set_option_path(param, get_array_of_strings_from_hash(SelfHash, "path", callback_state));
+    tmplpro_set_option_path(param, get_array_of_strings_from_hash(aTHX_ SelfHash, "path", callback_state));
     tmplpro_set_option_FindFileFuncPtr(param, NULL);
   }
   return param;
@@ -485,6 +585,7 @@ struct tmplpro_param* process_tmplpro_options (struct perl_callback_state* callb
 static void
 release_tmplpro_options(struct tmplpro_param* param, struct perl_callback_state callback_state)
 {
+  dTHX;       /* fetch context */
   av_undef(callback_state.filtered_tmpl_array);
   av_undef(callback_state.pool_for_perl_vars);
   tmplpro_param_free(param);
@@ -508,17 +609,25 @@ _done()
 int
 exec_tmpl(self_ptr,possible_output)
 	SV* self_ptr;
-	OutputStream possible_output;
-    CODE:
-	struct perl_callback_state callback_state = {self_ptr,newAV(),newAV()};
+	SV* possible_output;
+ PREINIT:
+	struct perl_callback_state callback_state = {self_ptr,newAV(),newAV(),0};
 	struct tmplpro_param* proparam=process_tmplpro_options(&callback_state);
-	if (possible_output == NULL){
-	  warn("bad file descriptor. Use output=stdout\n");
-	  tmplpro_set_option_ext_writer_state(proparam,PerlIO_stdout());
+    CODE:
+	OutputStream output_stream;
+	SvGETMAGIC(possible_output);
+	if (!SvOK(possible_output)) {
+	  tmplpro_set_option_WriterFuncPtr(proparam,NULL);
 	} else {
-	  tmplpro_set_option_ext_writer_state(proparam,possible_output);
+	  output_stream = IoOFP(sv_2io(possible_output));
+	  if (output_stream == NULL){
+	    warn("Pro.xs:output: bad file descriptor in print_to option. Use stdout\n");
+	    tmplpro_set_option_WriterFuncPtr(proparam,NULL);
+	  } else {
+	    tmplpro_set_option_ext_writer_state(proparam,output_stream);
+	    tmplpro_set_option_WriterFuncPtr(proparam,&write_chars_to_file);
+	  }
 	}
-	tmplpro_set_option_WriterFuncPtr(proparam,&write_chars_to_file);
 	RETVAL = tmplpro_exec_tmpl(proparam);
 	release_tmplpro_options(proparam,callback_state);
 	if (RETVAL!=0) warn ("Pro.xs: non-zero exit code %d",RETVAL);
@@ -526,26 +635,45 @@ exec_tmpl(self_ptr,possible_output)
 	RETVAL
 
 
-
 SV*
 exec_tmpl_string(self_ptr)
 	SV* self_ptr;
-    CODE:
+ PREINIT:
 	int retstate;
-	SV* OutputString;
-	struct perl_callback_state callback_state = {self_ptr,newAV(),newAV()};
-	/* TODO: */
-	/* 1) estimate string as 2*filesize */
-	/* 2) make it mortal ? auto...  */
+	/* made mortal automatically */
+	SV* outputString;
+	struct perl_callback_state callback_state = {self_ptr,newAV(),newAV(),0};
 	struct tmplpro_param* proparam=process_tmplpro_options(&callback_state);
-	OutputString=newSV(256); /* 256 allocated bytes -- should be approx. filesize*/
-	sv_setpvn(OutputString, "", 0);
+    CODE:
+	outputString=newSV(4000); /* 4000 allocated bytes -- should be approx. filesize*/
+	sv_setpvn(outputString, "", 0);
 	tmplpro_set_option_WriterFuncPtr(proparam,&write_chars_to_string);
-	tmplpro_set_option_ext_writer_state(proparam,OutputString);
+	tmplpro_set_option_ext_writer_state(proparam,outputString);
 	retstate = tmplpro_exec_tmpl(proparam);
 	release_tmplpro_options(proparam,callback_state);
 	if (retstate!=0) warn ("Pro.xs: non-zero exit code %d",retstate);
-	RETVAL = OutputString;
+	RETVAL = outputString;
+    OUTPUT:
+	RETVAL
+
+
+SV*
+exec_tmpl_string_builtin(self_ptr)
+	SV* self_ptr;
+ PREINIT:
+	int retstate;
+	SV* outputString;
+	MPSTRING inString;
+	struct perl_callback_state callback_state = {self_ptr,newAV(),newAV(),0};
+	struct tmplpro_param* proparam=process_tmplpro_options(&callback_state);
+    CODE:
+	inString = tmplpro_tmpl2pstring(proparam, &retstate);
+	outputString=newSV(inString.endnext-inString.begin+2);
+	sv_setpvn(outputString, inString.begin, inString.endnext-inString.begin);
+	free(inString.begin);
+	release_tmplpro_options(proparam,callback_state);
+	if (retstate!=0) warn ("Pro.xs: non-zero exit code %d",retstate);
+	RETVAL = outputString;
     OUTPUT:
 	RETVAL
 

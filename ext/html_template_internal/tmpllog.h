@@ -9,6 +9,7 @@
 /* based on FFmpeg av_log API */
 
 #include "pabidecl.h"
+#include "pmiscdef.h"
 #include <stdarg.h>
 
 #define TMPL_LOG_QUIET -1
@@ -17,14 +18,10 @@
 #define TMPL_LOG_DEBUG 2
 #define TMPL_LOG_DEBUG2 3
 
-#ifdef __GNUC__
-extern TMPLPRO_LOCAL void tmpl_log(void*, int level, const char *fmt, ...) __attribute__ ((__format__ (__printf__, 3, 4)));
-#else
-extern TMPLPRO_LOCAL void tmpl_log(void*, int level, const char *fmt, ...);
-#endif
+extern TMPLPRO_LOCAL void tmpl_log(int level, const char *fmt, ...) FORMAT_PRINTF(2,3);
 
-extern TMPLPRO_LOCAL void tmpl_vlog(void*, int level, const char *fmt, va_list);
+extern TMPLPRO_LOCAL void tmpl_vlog(int level, const char *fmt, va_list);
 extern TMPLPRO_LOCAL  int tmpl_log_get_level(void);
 extern TMPLPRO_LOCAL void tmpl_log_set_level(int);
-extern TMPLPRO_LOCAL void tmpl_log_set_callback(void (*)(void*, int, const char*, va_list));
+extern TMPLPRO_LOCAL void tmpl_log_set_callback(void (*)(int, const char*, va_list));
 

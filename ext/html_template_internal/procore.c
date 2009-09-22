@@ -11,12 +11,14 @@
 #include "pbuffer.h"
 #include "parse_expr.h"
 #include "pparam.h"
+#include "proscope.h"
 #include "proscope.inc"
 #include "pstrutils.inc"
 #include "pmiscdef.h" /*for snprintf */
 /* for mmap_load_file & mmap_unload_file */
 #include "loadfile.inc"
 
+#define HTML_TEMPLATE_NO_TAG     -1
 #define HTML_TEMPLATE_BAD_TAG     0
 #define HTML_TEMPLATE_FIRST_TAG_USED 1
 #define HTML_TEMPLATE_TAG_VAR     1
@@ -27,13 +29,6 @@
 #define HTML_TEMPLATE_TAG_UNLESS  6
 #define HTML_TEMPLATE_TAG_ELSIF   7
 #define HTML_TEMPLATE_LAST_TAG_USED  7
-
-#if defined(__GNUC__) && !(defined(PEDANTIC))
-#define INLINE inline
-#else /* !__GNUC__ */
-#define INLINE 
-#endif /* __GNUC__ */
-
 
 static 
 const char* const tagname[]={
@@ -51,6 +46,8 @@ const char* const TAGNAME[]={
 #define TAG_WIDTH_OFFSET 4
 
 static int debuglevel=0;
+
+#include "prostate.inc"
 
 static 
 const char* const innerloopname[]={
@@ -77,7 +74,7 @@ int
 try_inner_loop_variable (PSTRING name)
 { 
   int i;
-  char* cur_pos;
+  const char* cur_pos;
   const char* pattern;
   const char* PATTERN;
   for (i=HTML_TEMPLATE_FIRST_INNER_LOOP; i<=HTML_TEMPLATE_LAST_INNER_LOOP; i++) {
@@ -158,17 +155,48 @@ get_loop_context_vars_value (struct tmplpro_param *param, PSTRING name) {
   return retval;
 }
 
+static
+void init_tmpl_var_case_buffers (struct tmplpro_param *param) {
+  param->lowercase_varname.begin = NULL;
+  param->lowercase_varname.endnext = NULL;
+  param->uppercase_varname.begin = NULL;
+  param->uppercase_varname.endnext = NULL;
+}
+
 static 
 ABSTRACT_VALUE* get_abstract_value (struct tmplpro_param *param, int scope_level, PSTRING name) {
-  if (0==param->case_sensitive) name=lowercase_pstring(&(param->lowercase_varname_buffer), name);
-  if (NULL!=param->SelectLoopScopeFuncPtr) param->SelectLoopScopeFuncPtr(param->root_param_map,scope_level);
-  return param->GetAbstractValFuncPtr(getScope(&param->var_scope_stack, scope_level)->param_HV, name);
+  ABSTRACT_VALUE* retval = NULL;
+  ABSTRACT_MAP* param_HV = getScope(&param->var_scope_stack, scope_level)->param_HV;
+  ABSTRACT_DATASTATE* data_state = param->ext_data_state;
+  get_ABSTRACT_VALUE_functype getval_func = param->GetAbstractValFuncPtr;
+  int tmpl_var_case = param->tmpl_var_case;
+  if ((tmpl_var_case & ASK_NAME_MASK) == ASK_NAME_DEFAULT
+      || tmpl_var_case & ASK_NAME_AS_IS) {
+    retval = getval_func(data_state, param_HV, name);
+    if (retval != NULL) return retval;
+  }
+  if (tmpl_var_case & ASK_NAME_LOWERCASE) {
+    if (param->lowercase_varname.begin == NULL) {
+      param->lowercase_varname=lowercase_pstring(&param->lowercase_varname_buffer, name);
+    }
+    retval = getval_func(data_state, param_HV, param->lowercase_varname);
+    if (retval != NULL) return retval;
+  }
+  if (tmpl_var_case & ASK_NAME_UPPERCASE) {
+    if (param->uppercase_varname.begin == NULL) {
+      param->uppercase_varname=uppercase_pstring(&param->uppercase_varname_buffer, name);
+    }
+    retval = getval_func(data_state, param_HV, param->uppercase_varname);
+    if (retval != NULL) return retval;
+  }
+  return retval;
 }
 
 static
 ABSTRACT_VALUE* walk_through_nested_loops (struct tmplpro_param *param, PSTRING name) {
   int CurLevel;
   ABSTRACT_VALUE* valptr;
+  init_tmpl_var_case_buffers (param);
   /* Shigeki Morimoto path_like_variable_scope extension */
   if (param->path_like_variable_scope) {
     if(*(name.begin) == '/' || strncmp(name.begin, "../", 3) == 0){
@@ -194,7 +222,20 @@ ABSTRACT_VALUE* walk_through_nested_loops (struct tmplpro_param *param, PSTRING 
 
   CurLevel = curScopeLevel(&param->var_scope_stack);
   valptr = get_abstract_value(param, CurLevel, name);
-  if ((0==param->global_vars) || (valptr)) return valptr;
+  if (valptr) return valptr;
+  /* optional strict scoping; does it have much sence?
+    if ((STRICT_SCOPING==param->global_vars)) return NULL;
+  */
+
+  /* loop-bounded scoping; */
+  if (0==param->global_vars) {
+    while (isScopeMap(getScope(&param->var_scope_stack,CurLevel)) && --CurLevel>=0) {
+      valptr = get_abstract_value(param, CurLevel, name);
+      if (valptr!=NULL) return valptr;
+    }
+    return NULL;
+  }
+
   while (--CurLevel>=0) {
     valptr = get_abstract_value(param, CurLevel, name);
     if (valptr!=NULL) return valptr;
@@ -206,7 +247,7 @@ static
 int 
 is_string(struct tmplpro_state *state, const char* pattern,const char* PATTERN)
 {
-  char* cur_pos=state->cur_pos;
+  const char* cur_pos=state->cur_pos;
   while (*pattern && cur_pos<state->next_to_end) {
     if (*pattern == *cur_pos || *PATTERN == *cur_pos) {
       pattern++;
@@ -239,16 +280,6 @@ jump_to_char(struct tmplpro_state *state, char c)
 }
 
 TMPLPRO_LOCAL
-void 
-_tmpl_log_state (struct tmplpro_state *state, int level)
-{
-  tmpl_log(NULL,level, "HTML::Template::Pro:in %cTMPL_%s at pos " MOD_TD ": ",
-	  (state->is_tag_closed ? '/' : ' '), 
-	   (state->tag>HTML_TEMPLATE_BAD_TAG && state->tag <=HTML_TEMPLATE_LAST_TAG_USED) ? TAGNAME[state->tag] : "", 
-	   TO_PTRDIFF_T(state->tag_start - state->top));
-}
-
-TMPLPRO_LOCAL
 PSTRING _get_variable_value (struct tmplpro_param *param, PSTRING name) {
   PSTRING varvalue ={NULL, NULL};
   ABSTRACT_VALUE* abstrval;
@@ -257,7 +288,19 @@ PSTRING _get_variable_value (struct tmplpro_param *param, PSTRING name) {
   }
   if (varvalue.begin==NULL) {
     abstrval=walk_through_nested_loops(param, name);
-    if (abstrval!=NULL) varvalue=(param->AbstractVal2pstringFuncPtr)(abstrval);
+    if (abstrval!=NULL) varvalue=(param->AbstractVal2pstringFuncPtr)(param->ext_data_state, abstrval);
+  }
+  if (debuglevel>=TMPL_LOG_DEBUG2) {
+    if (name.begin!=NULL) {
+      tmpl_log(TMPL_LOG_DEBUG2,"_get_variable_value: name = %.*s ",(int)(name.endnext-name.begin),name.begin);
+    } else {
+      tmpl_log(TMPL_LOG_DEBUG2,"_get_variable_value: name = NULL ");
+    }
+    if (varvalue.begin!=NULL) {
+      tmpl_log(TMPL_LOG_DEBUG2,"value = %.*s\n",(int)(varvalue.endnext-varvalue.begin),varvalue.begin);
+    } else {
+      tmpl_log(TMPL_LOG_DEBUG2,"value = UNDEF\n");
+    }
   }
   return varvalue;
 }
@@ -267,17 +310,26 @@ void
 tag_handler_var (struct tmplpro_state *state, PSTRING name, PSTRING defvalue, int escapeopt)
 {
   PSTRING varvalue ={NULL, NULL};
-  /* registering variable could be inside GetVarFuncPtr */
+  /*
+  if (debuglevel>=TMPL_LOG_DEBUG2) {
+    log_state(state,TMPL_LOG_DEBUG2,"Entered tag_handler_var\n");
+    }*/
   if (! state->is_visible) return;
   if (state->is_expr) {
     varvalue=parse_expr(name, state);
-  } else 
+  } else {
     varvalue=_get_variable_value(state->param, name);
+  }
   if (debuglevel>=TMPL_LOG_DEBUG) {
-      if (varvalue.begin!=NULL) {
-	tmpl_log(state,TMPL_LOG_DEBUG,"variable value = %.*s\n",(int)(varvalue.endnext-varvalue.begin),varvalue.begin);
+    if (name.begin!=NULL) {
+      log_state(state,TMPL_LOG_DEBUG,"variable name = %.*s ",(int)(name.endnext-name.begin),name.begin);
     } else {
-      tmpl_log(state,TMPL_LOG_DEBUG,"variable value = UNDEF\n");
+      log_state(state,TMPL_LOG_DEBUG,"variable name = NULL ");
+    }
+    if (varvalue.begin!=NULL) {
+      tmpl_log(TMPL_LOG_DEBUG,"value = %.*s\n",(int)(varvalue.endnext-varvalue.begin),varvalue.begin);
+    } else {
+      tmpl_log(TMPL_LOG_DEBUG,"value = UNDEF\n");
     }
   }
   if (varvalue.begin==NULL) {
@@ -303,7 +355,7 @@ tag_handler_include (struct tmplpro_state *state, PSTRING name, PSTRING defvalue
   if (! state->is_visible) return;
   param=state->param;
   if (param->no_includes) {
-    tmpl_log(state,TMPL_LOG_ERROR, "HTML::Template::Pro : Illegal attempt to use TMPL_INCLUDE in template file : (no_includes => 1)");
+    log_state(state,TMPL_LOG_ERROR, "HTML::Template::Pro : Illegal attempt to use TMPL_INCLUDE in template file : (no_includes => 1)\n");
     return;
   }
   if (param->max_includes && param->max_includes < param->cur_includes) return;
@@ -334,8 +386,6 @@ int
 is_var_true(struct tmplpro_state *state, PSTRING name) 
 {
   register int ifval=-1; /*not yet defined*/
-  ABSTRACT_VALUE* abstrval;
-  is_ABSTRACT_VALUE_true_functype userSuppliedIsTrueFunc;
   if (state->is_expr) {
     ifval=is_pstring_true(parse_expr(name, state));
   } else
@@ -346,13 +396,14 @@ is_var_true(struct tmplpro_state *state, PSTRING name)
       }
     }
   if (ifval==-1) {
-    abstrval=walk_through_nested_loops(state->param, name);
+    is_ABSTRACT_VALUE_true_functype userSuppliedIsTrueFunc;
+    ABSTRACT_VALUE* abstrval=walk_through_nested_loops(state->param, name);
     if (abstrval==NULL) return 0;
     userSuppliedIsTrueFunc = state->param->IsAbstractValTrueFuncPtr;
     if (userSuppliedIsTrueFunc!=NULL) {
-      ifval=(userSuppliedIsTrueFunc)(abstrval);
+      ifval=(userSuppliedIsTrueFunc)(state->param->ext_data_state, abstrval);
     } else {
-      ifval=is_pstring_true((state->param->AbstractVal2pstringFuncPtr)(abstrval));
+      ifval=is_pstring_true((state->param->AbstractVal2pstringFuncPtr)(state->param->ext_data_state, abstrval));
     }
   }
   return ifval;
@@ -375,7 +426,7 @@ tag_handler_if (struct tmplpro_state *state, PSTRING name)
     state->is_visible=0;
   }
   tagstack_push(&(state->tag_stack), iftag);
-  if (debuglevel>3) tmpl_log(state,TMPL_LOG_DEBUG2,"tag_handler_if:visible context =%d value=%d ",iftag.vcontext,iftag.value);
+  if (debuglevel>=TMPL_LOG_DEBUG2) log_state(state,TMPL_LOG_DEBUG2,"tag_handler_if:visible context =%d value=%d ",iftag.vcontext,iftag.value);
 }
 
 static 
@@ -395,7 +446,7 @@ tag_handler_unless (struct tmplpro_state *state, PSTRING name)
     state->is_visible=0;
   }
   tagstack_push(&(state->tag_stack), iftag);
-  if (debuglevel>3) tmpl_log(state,TMPL_LOG_DEBUG2,"tag_handler_unless:visible context =%d value=%d ",iftag.vcontext,iftag.value);
+  if (debuglevel>=TMPL_LOG_DEBUG2) log_state(state,TMPL_LOG_DEBUG2,"tag_handler_unless:visible context =%d value=%d ",iftag.vcontext,iftag.value);
 }
 
 static 
@@ -415,10 +466,10 @@ tag_stack_debug  (struct tmplpro_state *state, int stack_tag_type)
     if (tagstack_notempty(&(state->tag_stack))) {
       struct tagstack_entry* iftag=tagstack_top(&(state->tag_stack));
       if (iftag->tag!=stack_tag_type) {
-	tmpl_log(state,TMPL_LOG_ERROR, "ERROR: tag mismatch with %s\n",TAGNAME[iftag->tag]);
+	log_state(state,TMPL_LOG_ERROR, "ERROR: tag mismatch with %s\n",TAGNAME[iftag->tag]);
       }
     } else {
-      tmpl_log(state,TMPL_LOG_ERROR, "ERROR: opening tag %s not found\n",TAGNAME[stack_tag_type]);
+      log_state(state,TMPL_LOG_ERROR, "ERROR: opening tag %s not found\n",TAGNAME[stack_tag_type]);
     }
   }
 }
@@ -468,7 +519,7 @@ tag_handler_else (struct tmplpro_state *state)
   } else if (1==iftag->vcontext) {
     state->is_visible=1;
   }
-  if (debuglevel>3) tmpl_log(state,TMPL_LOG_DEBUG2,"else:(pos " MOD_TD ") visible:context =%d, set to %d ",
+  if (debuglevel>=TMPL_LOG_DEBUG2) log_state(state,TMPL_LOG_DEBUG2,"else:(pos " MOD_TD ") visible:context =%d, set to %d ",
 			     TO_PTRDIFF_T(iftag->position - state->top),iftag->vcontext,state->is_visible);
 }
 
@@ -497,7 +548,7 @@ tag_handler_elsif (struct tmplpro_state *state, PSTRING name)
       state->is_visible=0;
     }
   }
-  if (debuglevel>3) tmpl_log(state,TMPL_LOG_DEBUG2,"elsif:(pos " MOD_TD ") visible:context =%d, set to %d ",
+  if (debuglevel>=TMPL_LOG_DEBUG2) log_state(state,TMPL_LOG_DEBUG2,"elsif:(pos " MOD_TD ") visible:context =%d, set to %d ",
 			     TO_PTRDIFF_T(iftag->position - state->top), iftag->vcontext, state->is_visible);
 }
 
@@ -505,30 +556,26 @@ static
 int 
 next_loop (struct tmplpro_state* state) {
 #ifdef DEBUG
-  tmpl_log(state,TMPL_LOG_DEBUG2,"next_loop:before NextLoopFuncPtr\n");
+  log_state(state,TMPL_LOG_DEBUG2,"next_loop:before NextLoopFuncPtr\n");
 #endif
   struct ProScopeEntry* currentScope = getCurrentScope(&state->param->var_scope_stack);
   if (!isScopeLoop(currentScope)) {
-    tmpl_log(state,TMPL_LOG_ERROR, "next_loop:at scope level %d: internal error - loop is null", curScopeLevel(&state->param->var_scope_stack));
+    log_state(state,TMPL_LOG_ERROR, "next_loop:at scope level %d: internal error - loop is null\n", curScopeLevel(&state->param->var_scope_stack));
     return 0;
   }
   if (++currentScope->loop < currentScope->loop_count || currentScope->loop_count< 0) {
-    ABSTRACT_MAP* arrayvalptr=(state->param->GetAbstractMapFuncPtr)(currentScope->loops_AV,currentScope->loop);
-    if ((arrayvalptr==NULL)) {
-      /* either undefined loop ended normally or defined loop ended ubnormally */
-      if (currentScope->loop_count>0) tmpl_log(state,TMPL_LOG_ERROR, "PARAM:LOOP:next_loop(%d): callback returned null scope", currentScope->loop);
-      popScope(&state->param->var_scope_stack);
-      if (state->param->EndLoopFuncPtr) state->param->EndLoopFuncPtr(state->param->root_param_map, curScopeLevel(&state->param->var_scope_stack));
-      return 0;
-    } else {
+    ABSTRACT_MAP* arrayvalptr=(state->param->GetAbstractMapFuncPtr)(state->param->ext_data_state, currentScope->loops_AV,currentScope->loop);
+    if ((arrayvalptr!=NULL)) {
       currentScope->param_HV=arrayvalptr;
       return 1;
+    } else {
+      /* either undefined loop ended normally or defined loop ended ubnormally */
+      if (currentScope->loop_count>0) log_state(state,TMPL_LOG_ERROR, "PARAM:LOOP:next_loop(%d): callback returned null scope\n", currentScope->loop);
     }
-  } else {
-    popScope(&state->param->var_scope_stack);
-    if (state->param->EndLoopFuncPtr) state->param->EndLoopFuncPtr(state->param->root_param_map, curScopeLevel(&state->param->var_scope_stack));
-    return 0;
   }
+  if (state->param->ExitLoopScopeFuncPtr) state->param->ExitLoopScopeFuncPtr(state->param->ext_data_state, currentScope->loops_AV);
+  popScope(&state->param->var_scope_stack);
+  return 0;
 }
 
 static 
@@ -539,13 +586,13 @@ int init_loop (struct tmplpro_state *state, PSTRING name) {
     return 0;
   } else {
     /* set loop array */
-    loopptr = (*state->param->AbstractVal2abstractArrayFuncPtr)(loopptr);
+    loopptr = (*state->param->AbstractVal2abstractArrayFuncPtr)(state->param->ext_data_state, loopptr);
     if (loopptr == NULL)
       {
-	tmpl_log(state,TMPL_LOG_ERROR, "PARAM:LOOP:loop argument:loop was expected but not found");
+	log_state(state,TMPL_LOG_ERROR, "PARAM:LOOP:loop argument:loop was expected but not found.\n");
 	return 0;
       }
-    loop_count = (*state->param->GetAbstractArrayLengthFuncPtr)(loopptr);
+    loop_count = (*state->param->GetAbstractArrayLengthFuncPtr)(state->param->ext_data_state, loopptr);
     /* 0 is an empty array; <0 is an undefined array (iterated until next_loop==NULL */
     if (0==loop_count) return 0;
     pushScopeLoop(&state->param->var_scope_stack, loop_count, loopptr);
@@ -563,7 +610,7 @@ tag_handler_loop (struct tmplpro_state *state, PSTRING name)
   iftag.value=0;
   iftag.position=state->cur_pos; /* loop start - to restore in </tmpl_loop> */
 #ifdef DEBUG
-  tmpl_log(state,TMPL_LOG_DEBUG2,"tag_handler_loop:before InitLoopFuncPtr\n");
+  log_state(state,TMPL_LOG_DEBUG2,"tag_handler_loop:before InitLoopFuncPtr\n");
 #endif
   if (state->is_visible && init_loop(state,name) && next_loop(state)) {
     iftag.value=1; /* the loop is non - empty */
@@ -572,7 +619,7 @@ tag_handler_loop (struct tmplpro_state *state, PSTRING name)
     state->is_visible=0;
   }
 #ifdef DEBUG
-  tmpl_log(state,TMPL_LOG_DEBUG2,"tag_handler_loop:after InitLoopFuncPtr\n");
+  log_state(state,TMPL_LOG_DEBUG2,"tag_handler_loop:after InitLoopFuncPtr\n");
 #endif
   tagstack_push(&(state->tag_stack), iftag);
 }
@@ -605,7 +652,7 @@ static
 void 
 tag_handler_unknown (struct tmplpro_state *state)
 {
-  tmpl_log(state,TMPL_LOG_ERROR,"tag_handler_unknown: unknown tag\n");
+  log_state(state,TMPL_LOG_ERROR,"tag_handler_unknown: unknown tag\n");
 }
 
 static 
@@ -615,8 +662,8 @@ read_tag_parameter_value (struct tmplpro_state *state)
   PSTRING modifier_value;
   char cur_char;
   char quote_char=0;
-  register char* cur_pos;
-  register char* next_to_end=state->next_to_end;
+  register const char* cur_pos;
+  register const char* next_to_end=state->next_to_end;
   jump_over_space(state);
   cur_pos=state->cur_pos;
   cur_char=*(cur_pos);
@@ -643,7 +690,7 @@ read_tag_parameter_value (struct tmplpro_state *state)
     }
   }
   if (cur_pos>=next_to_end) {
-    tmpl_log(state,TMPL_LOG_ERROR,"quote char %c at pos " MOD_TD " is not terminated\n",
+    log_state(state,TMPL_LOG_ERROR,"quote char %c at pos " MOD_TD " is not terminated\n",
 	     quote_char,TO_PTRDIFF_T(state->cur_pos-state->top));
     modifier_value.endnext=modifier_value.begin;
     jump_over_space(state);
@@ -654,12 +701,12 @@ read_tag_parameter_value (struct tmplpro_state *state)
     if (quote_char==*cur_pos) {
       cur_pos++;
     } else {
-      tmpl_log(state,TMPL_LOG_ERROR,"found %c instead of end quote %c at pos " MOD_TD "\n",
+      log_state(state,TMPL_LOG_ERROR,"found %c instead of end quote %c at pos " MOD_TD "\n",
 	       *cur_pos,quote_char,TO_PTRDIFF_T(cur_pos - state->top));
     }
   }
   state->cur_pos=cur_pos;
-  /* tmpl_log(state,TMPL_LOG_DEBUG2," at pos " MOD_TD "",TO_PTRDIFF_T(state->cur_pos-state->top)); */
+  /* log_state(state,TMPL_LOG_DEBUG2," at pos " MOD_TD "",TO_PTRDIFF_T(state->cur_pos-state->top)); */
   jump_over_space(state);
   return modifier_value;
 }
@@ -668,7 +715,7 @@ static
 int 
 try_tag_parameter (struct tmplpro_state *state,const char *modifier,const char *MODIFIER)
 {
-  char* initial_pos=state->cur_pos;
+  const char* initial_pos=state->cur_pos;
   jump_over_space(state);
   if (is_string(state, modifier, MODIFIER)) {
     jump_over_space(state);
@@ -692,11 +739,11 @@ try_tmpl_var_options (struct tmplpro_state *state, PSTRING* OptEscape, PSTRING* 
   static const char* DEFAULTOPT="DEFAULT";
   if (try_tag_parameter(state, escapeopt, ESCAPEOPT)) {
     *OptEscape=read_tag_parameter_value(state);
-    tmpl_log(state,TMPL_LOG_DEBUG, "found option ESCAPE at pos " MOD_TD "\n",TO_PTRDIFF_T(state->cur_pos-state->top));
+    log_state(state,TMPL_LOG_DEBUG, "found option ESCAPE at pos " MOD_TD "\n",TO_PTRDIFF_T(state->cur_pos-state->top));
   }
   if (try_tag_parameter(state, defaultopt, DEFAULTOPT)) {
     *OptDefault=read_tag_parameter_value(state);
-    tmpl_log(state,TMPL_LOG_DEBUG, "found option DEFAULT at pos " MOD_TD "\n",TO_PTRDIFF_T(state->cur_pos-state->top));
+    log_state(state,TMPL_LOG_DEBUG, "found option DEFAULT at pos " MOD_TD "\n",TO_PTRDIFF_T(state->cur_pos-state->top));
   }
 }
 
@@ -705,7 +752,7 @@ static
 void 
 process_tmpl_tag(struct tmplpro_state *state)
 {
-  char* tag_start=state->tag_start;
+  const char* tag_start=state->tag_start;
   int is_tag_closed=state->is_tag_closed;
 
   int tag_type=HTML_TEMPLATE_BAD_TAG;
@@ -725,16 +772,16 @@ process_tmpl_tag(struct tmplpro_state *state)
       state->tag=tag_type;
       if (debuglevel) {
 	if (is_tag_closed) {
-	  tmpl_log(NULL,TMPL_LOG_DEBUG, "found </TMPL_%s> at pos " MOD_TD "\n",TAGNAME[i], TO_PTRDIFF_T(state->cur_pos-state->top));
+	  tmpl_log(TMPL_LOG_DEBUG, "found </TMPL_%s> at pos " MOD_TD "\n",TAGNAME[i], TO_PTRDIFF_T(state->cur_pos-state->top));
 	} else {
-	  tmpl_log(NULL,TMPL_LOG_DEBUG, "found <TMPL_%s> at pos " MOD_TD "\n",TAGNAME[i], TO_PTRDIFF_T(state->cur_pos-state->top));
+	  tmpl_log(TMPL_LOG_DEBUG, "found <TMPL_%s> at pos " MOD_TD "\n",TAGNAME[i], TO_PTRDIFF_T(state->cur_pos-state->top));
 	}
       }
       break;
     }
   }
   if (HTML_TEMPLATE_BAD_TAG==tag_type) {
-    tmpl_log(state,TMPL_LOG_ERROR, "found BAD at pos " MOD_TD " ", TO_PTRDIFF_T(state->cur_pos-state->top));
+    log_state(state,TMPL_LOG_ERROR, "found bad tag at pos " MOD_TD "\n", TO_PTRDIFF_T(state->cur_pos-state->top));
     /* TODO: flush its data ---  */
     state->cur_pos++;
     return;
@@ -745,7 +792,7 @@ process_tmpl_tag(struct tmplpro_state *state)
 			|| tag_type==HTML_TEMPLATE_TAG_INCLUDE
 			|| tag_type==HTML_TEMPLATE_TAG_VAR
 )) {
-    tmpl_log(state,TMPL_LOG_ERROR, "incorrect tag </TMPL_%s> at pos " MOD_TD "\n",
+    log_state(state,TMPL_LOG_ERROR, "incorrect tag </TMPL_%s> at pos " MOD_TD "\n",
 	     TAGNAME[tag_type], TO_PTRDIFF_T(state->cur_pos-state->top));
   }
 
@@ -790,10 +837,13 @@ process_tmpl_tag(struct tmplpro_state *state)
       state->cur_pos+=2;
     }
   }
+  /* template tags could also be decorated as xml <tmpl_TAG /> */
+  if (!state->is_tag_closed && '/'==*(state->cur_pos)) state->cur_pos++;
+
   if ('>'==*(state->cur_pos)) {
     state->cur_pos++;
   } else {
-    tmpl_log(state,TMPL_LOG_ERROR,"end tag:found %c instead of > at pos " MOD_TD "\n",
+    log_state(state,TMPL_LOG_ERROR,"end tag:found %c instead of > at pos " MOD_TD "\n",
 	     *state->cur_pos, TO_PTRDIFF_T(state->cur_pos-state->top));
   }
   /* flush run chars (if in SHOW mode) */
@@ -831,7 +881,7 @@ process_tmpl_tag(struct tmplpro_state *state)
 	  escape = HTML_TEMPLATE_OPT_ESCAPE_NO;
 	  break;
 	default:
-	  tmpl_log(state,TMPL_LOG_ERROR, " unsupported value of ESCAPE=%.*s\n",(int)(OptEscape.endnext-OptEscape.begin),OptEscape.begin);
+	  log_state(state,TMPL_LOG_ERROR, " unsupported value of ESCAPE=%.*s\n",(int)(OptEscape.endnext-OptEscape.begin),OptEscape.begin);
 	}
       }
       tag_handler_var(state,OptName,OptDefault,escape);
@@ -856,8 +906,9 @@ process_state (struct tmplpro_state * state)
   static const char* METATAG="TMPL_";
   flag is_tag_closed;
   flag is_tag_commented;
-  char* last_safe_pos=state->next_to_end-TAG_WIDTH_OFFSET;
-  if (debuglevel) tmpl_log(NULL,TMPL_LOG_DEBUG,"process_state:initiated\n");
+  const char* last_safe_pos=state->next_to_end-TAG_WIDTH_OFFSET;
+  if (debuglevel) tmpl_log(TMPL_LOG_DEBUG,"process_state:initiated at scope stack depth = %d\n", 
+			   curScopeLevel(&state->param->var_scope_stack));
   tagstack_init(&(state->tag_stack));
   pbuffer_init(&(state->str_buffer));
   /* magic; 256 > 50 (50 is min.required for double to string conversion */
@@ -865,7 +916,7 @@ process_state (struct tmplpro_state * state)
   pbuffer_init_as(&(state->expr_right_pbuffer), 256);
 
   while (state->cur_pos < last_safe_pos) {
-    register char* cur_pos=state->cur_pos;
+    register const char* cur_pos=state->cur_pos;
     while (cur_pos < last_safe_pos && '<'!=*(cur_pos++)) {};
     if (cur_pos >= last_safe_pos) break;
     state->tag_start=cur_pos-1;
@@ -893,7 +944,7 @@ process_state (struct tmplpro_state * state)
   pbuffer_free(&(state->expr_left_pbuffer));
   pbuffer_free(&(state->str_buffer));
   tagstack_free(&(state->tag_stack));
-  if (debuglevel) tmpl_log(NULL,TMPL_LOG_DEBUG,"process_state:finished\n");
+  if (debuglevel) tmpl_log(TMPL_LOG_DEBUG,"process_state:finished\n");
 }
 
 static 
@@ -906,6 +957,7 @@ init_state (struct tmplpro_state *state, struct tmplpro_param *param)
   state->param=param;
   state->last_processed_pos=state->top;
   state->cur_pos=state->top;
+  state->tag=HTML_TEMPLATE_NO_TAG;
   state->is_visible=1;
 }
 
@@ -940,7 +992,7 @@ tmplpro_exec_tmpl_filename (struct tmplpro_param *param, const char* filename)
   if (memarea.begin < memarea.endnext) {
     /* to avoid crash with empty file */
     init_state(&state,param);
-    tmpl_log(&state,TMPL_LOG_DEBUG, "exec_tmpl: loading %s\n",filename);
+    log_state(&state,TMPL_LOG_DEBUG, "exec_tmpl: loading %s\n",filename);
     process_state(&state);
   }
   /* destroying */
@@ -986,13 +1038,13 @@ tmplpro_exec_tmpl (struct tmplpro_param *param)
 	param->CallExprUserfncFuncPtr==NULL))
       )
     {
-    tmpl_log(NULL,TMPL_LOG_ERROR,"tmplpro_exec_tmpl: a required callback is missing.");
-    return 1;
+    tmpl_log(TMPL_LOG_ERROR,"tmplpro_exec_tmpl: a required callback is missing.");
+    return ERR_PRO_INVALID_ARGUMENT;
   }
   if (param->filters &&
       (param->LoadFileFuncPtr==NULL ||
        param->UnloadFileFuncPtr==NULL)) {
-    tmpl_log(NULL,TMPL_LOG_ERROR,"tmplpro_exec_tmpl: filters is set but filter callbacks are missing.");
+    tmpl_log(TMPL_LOG_ERROR,"tmplpro_exec_tmpl: filters is set but filter callbacks are missing.");
   }
   /* set up stabs */
   if (NULL==param->WriterFuncPtr) param->WriterFuncPtr = stub_write_chars_to_stdout;
@@ -1007,30 +1059,83 @@ tmplpro_exec_tmpl (struct tmplpro_param *param)
   if (NULL==param->UnloadFileFuncPtr) param->UnloadFileFuncPtr = stub_unload_file_func;
   if (NULL==param->GetAbstractArrayLengthFuncPtr) param->GetAbstractArrayLengthFuncPtr = stub_get_ABSTRACT_ARRAY_length_func;
 
-  Scope_reset(&param->var_scope_stack);
-  pushScopeMap(&param->var_scope_stack, param->root_param_map, 0);
+  Scope_reset(&param->var_scope_stack, param->param_map_count);
+  /* reset other internals */
+  param->cur_includes=0; /* internal counter of include depth */
+  /*masterpath=NULL;*/
 
   if (param->scalarref.begin) exitcode = tmplpro_exec_tmpl_scalarref(param, param->scalarref);
   else if (param->filename) exitcode = tmplpro_exec_tmpl_filename(param, param->filename);
   else {
-    tmpl_log(NULL,TMPL_LOG_ERROR,"tmplpro_exec_tmpl: neither scalarref nor filename was specified.");
+    tmpl_log(TMPL_LOG_ERROR,"tmplpro_exec_tmpl: neither scalarref nor filename was specified.");
     exitcode = ERR_PRO_INVALID_ARGUMENT;
   }
 
   return exitcode;
 }
 
+API_IMPL
+MPSTRING
+APICALL
+tmplpro_tmpl2pstring (struct tmplpro_param *param, int *retvalptr)
+{
+  int exitcode;
+  MPSTRING retval;
+  struct builtin_writer_state state;
+  writer_functype save_writer_func = param->WriterFuncPtr;
+  ABSTRACT_WRITER* save_writer_state = param->ext_writer_state;
+  param->WriterFuncPtr = stub_write_chars_to_pbuffer;
+  param->ext_writer_state = &state;
+  pbuffer_init_as(&state.buffer, 4000);
+  state.size = 0;
+  exitcode = tmplpro_exec_tmpl (param);
+  param->WriterFuncPtr = save_writer_func;
+  param->ext_writer_state = save_writer_state;
+  if (retvalptr) *retvalptr=exitcode;
+  retval.begin = pbuffer_string(&state.buffer);
+  retval.endnext = retval.begin+state.size;
+  *retval.endnext='\0';
+  return retval;
+}
+
 API_IMPL 
 void 
 APICALL
-tmplpro_procore_init()
+tmplpro_clear_option_param_map(struct tmplpro_param *param)
+{
+  param->param_map_count=0;
+  Scope_reset(&param->var_scope_stack,param->param_map_count);
+}
+
+API_IMPL 
+int 
+APICALL
+tmplpro_push_option_param_map(struct tmplpro_param *param, ABSTRACT_MAP* map, EXPR_int64 flags)
+{
+  pushScopeMap(&param->var_scope_stack, map, (int) flags);
+  return ++(param->param_map_count);
+}
+
+API_IMPL 
+int 
+APICALL
+tmplpro_count_option_param_map(struct tmplpro_param *param)
+{
+  return param->param_map_count;
+}
+
+
+API_IMPL 
+void 
+APICALL
+tmplpro_procore_init(void)
 {
 }
 
 API_IMPL 
 void 
 APICALL
-tmplpro_procore_done()
+tmplpro_procore_done(void)
 {
 }
 
@@ -1038,8 +1143,8 @@ tmplpro_procore_done()
 API_IMPL 
 struct tmplpro_param* 
 APICALL
-tmplpro_param_init()
-{    
+tmplpro_param_init(void)
+{
   struct tmplpro_param* param=(struct tmplpro_param*) malloc (sizeof(struct tmplpro_param));
   if (param==NULL) return param;
   /* filling initial struct tmplpro_param with 0 */
@@ -1053,12 +1158,12 @@ tmplpro_param_init()
      param->expr_func_map=NULL;
      param->expr_func_arglist=NULL;
   */
-  param->case_sensitive=1;
   param->max_includes=256;
   Scope_init(&param->var_scope_stack);
   /* no need for them due to memset 0
   pbuffer_preinit(&param->builtin_findfile_buffer);
   pbuffer_preinit(&param->lowercase_varname_buffer);
+  pbuffer_preinit(&param->uppercase_varname_buffer);
   */
   return param;
 }
@@ -1070,6 +1175,7 @@ tmplpro_param_free(struct tmplpro_param* param)
 {
   pbuffer_free(&param->builtin_findfile_buffer);
   pbuffer_free(&param->lowercase_varname_buffer);
+  pbuffer_free(&param->uppercase_varname_buffer);
   Scope_free(&param->var_scope_stack);
   free(param);
 }

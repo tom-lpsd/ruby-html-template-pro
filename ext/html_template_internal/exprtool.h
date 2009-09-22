@@ -77,7 +77,7 @@ struct exprval exp_read_number (struct expr_parser* exprobj, const char* *curpos
 
 /* this stuff is defined or used in expr.y */
 static
-void expr_error(struct expr_parser* exprobj, char const *,char const *);
+void log_expr(struct expr_parser* exprobj, int loglevel, const char* fmt, ...) FORMAT_PRINTF(3,4);
 
 static
 PSTRING expr_unescape_pstring_val(pbuffer* pbuff, PSTRING val);

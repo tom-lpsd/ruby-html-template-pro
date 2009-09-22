@@ -43,6 +43,18 @@ APICALL tmplpro_set_option_debug(struct tmplpro_param* param, int val) {
 
 API_IMPL 
 int 
+APICALL tmplpro_get_option_tmpl_var_case(struct tmplpro_param* param) {
+    return param->tmpl_var_case;
+}
+
+API_IMPL 
+void
+APICALL tmplpro_set_option_tmpl_var_case(struct tmplpro_param* param, int val) {
+    param->tmpl_var_case=val;
+}
+
+API_IMPL 
+int 
 APICALL tmplpro_get_option_no_includes(struct tmplpro_param* param) {
     return (int) param->no_includes;
 }
@@ -51,18 +63,6 @@ API_IMPL
 void
 APICALL tmplpro_set_option_no_includes(struct tmplpro_param* param, int val) {
     param->no_includes=(flag)val;
-}
-
-API_IMPL 
-int 
-APICALL tmplpro_get_option_case_sensitive(struct tmplpro_param* param) {
-    return (int) param->case_sensitive;
-}
-
-API_IMPL 
-void
-APICALL tmplpro_set_option_case_sensitive(struct tmplpro_param* param, int val) {
-    param->case_sensitive=(flag)val;
 }
 
 API_IMPL 
@@ -123,6 +123,10 @@ API_IMPL
 void
 APICALL tmplpro_set_option_filename(struct tmplpro_param* param, const char* val) {
     param->filename=val;
+    if (NULL!=val) {
+      param->scalarref.begin=NULL;
+      param->scalarref.endnext=NULL;
+}
 }
 
 API_IMPL 
@@ -135,6 +139,7 @@ API_IMPL
 void
 APICALL tmplpro_set_option_scalarref(struct tmplpro_param* param, PSTRING val) {
     param->scalarref=val;
+    if (NULL!=val.begin) param->filename=NULL;
 }
 
 API_IMPL 
@@ -171,18 +176,6 @@ API_IMPL
 void
 APICALL tmplpro_set_option_path(struct tmplpro_param* param, char** val) {
     param->path=val;
-}
-
-API_IMPL 
-int 
-APICALL tmplpro_get_option_die_on_bad_params(struct tmplpro_param* param) {
-    return (int) param->die_on_bad_params;
-}
-
-API_IMPL 
-void
-APICALL tmplpro_set_option_die_on_bad_params(struct tmplpro_param* param, int val) {
-    param->die_on_bad_params=(flag)val;
 }
 
 API_IMPL 
@@ -306,39 +299,15 @@ APICALL tmplpro_set_option_UnloadFileFuncPtr(struct tmplpro_param* param, unload
 }
 
 API_IMPL 
-select_loop_scope_functype 
-APICALL tmplpro_get_option_SelectLoopScopeFuncPtr(struct tmplpro_param* param) {
-    return param->SelectLoopScopeFuncPtr;
+exit_loop_scope_functype 
+APICALL tmplpro_get_option_ExitLoopScopeFuncPtr(struct tmplpro_param* param) {
+    return param->ExitLoopScopeFuncPtr;
 }
 
 API_IMPL 
 void
-APICALL tmplpro_set_option_SelectLoopScopeFuncPtr(struct tmplpro_param* param, select_loop_scope_functype val) {
-    param->SelectLoopScopeFuncPtr=val;
-}
-
-API_IMPL 
-end_loop_functype 
-APICALL tmplpro_get_option_EndLoopFuncPtr(struct tmplpro_param* param) {
-    return param->EndLoopFuncPtr;
-}
-
-API_IMPL 
-void
-APICALL tmplpro_set_option_EndLoopFuncPtr(struct tmplpro_param* param, end_loop_functype val) {
-    param->EndLoopFuncPtr=val;
-}
-
-API_IMPL 
-ABSTRACT_MAP* 
-APICALL tmplpro_get_option_root_param_map(struct tmplpro_param* param) {
-    return param->root_param_map;
-}
-
-API_IMPL 
-void
-APICALL tmplpro_set_option_root_param_map(struct tmplpro_param* param, ABSTRACT_MAP* val) {
-    param->root_param_map=val;
+APICALL tmplpro_set_option_ExitLoopScopeFuncPtr(struct tmplpro_param* param, exit_loop_scope_functype val) {
+    param->ExitLoopScopeFuncPtr=val;
 }
 
 API_IMPL 
@@ -375,6 +344,18 @@ API_IMPL
 void
 APICALL tmplpro_set_option_ext_findfile_state(struct tmplpro_param* param, ABSTRACT_FINDFILE* val) {
     param->ext_findfile_state=val;
+}
+
+API_IMPL 
+ABSTRACT_DATASTATE* 
+APICALL tmplpro_get_option_ext_data_state(struct tmplpro_param* param) {
+    return param->ext_data_state;
+}
+
+API_IMPL 
+void
+APICALL tmplpro_set_option_ext_data_state(struct tmplpro_param* param, ABSTRACT_DATASTATE* val) {
+    param->ext_data_state=val;
 }
 
 API_IMPL 

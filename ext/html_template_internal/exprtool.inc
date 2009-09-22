@@ -172,7 +172,7 @@ exp_read_number (struct expr_parser* exprobj, const char* *curposptr, const char
 	offset=1;
       } else {
 	/* (*curposptr)--; ??? */
-	expr_error(exprobj, "uninspected declimal point","");
+	log_expr(exprobj, TMPL_LOG_ERROR, "while reading number: %s\n", "uninspected declimal point");
 	retval.val.dblval=dretval*sign;
 	retval.type=EXPR_TYPE_DBL;
 	return retval;
@@ -243,22 +243,22 @@ static
 void 
 _tmplpro_expnum_debug (struct exprval val, char* msg) 
 {
-  tmpl_log(NULL,TMPL_LOG_DEBUG,"--> debug %s:type %c ",msg,val.type);
+  tmpl_log(TMPL_LOG_DEBUG,"--> debug %s:type %c ",msg,val.type);
   if (val.type == EXPR_TYPE_INT)
-    tmpl_log(NULL,TMPL_LOG_DEBUG,"ival=%" EXPR_PRId64 "\n",val.val.intval);
+    tmpl_log(TMPL_LOG_DEBUG,"ival=%" EXPR_PRId64 "\n",val.val.intval);
   else if (val.type == EXPR_TYPE_DBL)
-    tmpl_log(NULL,TMPL_LOG_DEBUG,"dval=%f\n",val.val.dblval);
+    tmpl_log(TMPL_LOG_DEBUG,"dval=%f\n",val.val.dblval);
   else if (val.type == EXPR_TYPE_PSTR) {
-    tmpl_log(NULL,TMPL_LOG_DEBUG,"pstr(%c):",(int) val.type);
-    if (NULL==val.val.strval.begin) tmpl_log(NULL,TMPL_LOG_DEBUG,"{begin=NULL}");
-    if (NULL==val.val.strval.endnext) tmpl_log(NULL,TMPL_LOG_DEBUG,"{endnext=NULL}");
-    tmpl_log(NULL,TMPL_LOG_DEBUG,"sval=%.*s\n",(int)(val.val.strval.endnext-val.val.strval.begin),val.val.strval.begin);
+    tmpl_log(TMPL_LOG_DEBUG,"pstr(%c):",(int) val.type);
+    if (NULL==val.val.strval.begin) tmpl_log(TMPL_LOG_DEBUG,"{begin=NULL}");
+    if (NULL==val.val.strval.endnext) tmpl_log(TMPL_LOG_DEBUG,"{endnext=NULL}");
+    tmpl_log(TMPL_LOG_DEBUG,"sval=%.*s\n",(int)(val.val.strval.endnext-val.val.strval.begin),val.val.strval.begin);
   } else if (val.type == EXPR_TYPE_NULL) {
-    tmpl_log(NULL,TMPL_LOG_DEBUG,"NULL\n");
-    if (NULL!=val.val.strval.begin) tmpl_log(NULL,TMPL_LOG_DEBUG,"{begin!=NULL}");
-    if (NULL!=val.val.strval.endnext) tmpl_log(NULL,TMPL_LOG_DEBUG,"{endnext!=NULL}");
+    tmpl_log(TMPL_LOG_DEBUG,"NULL\n");
+    if (NULL!=val.val.strval.begin) tmpl_log(TMPL_LOG_DEBUG,"{begin!=NULL}");
+    if (NULL!=val.val.strval.endnext) tmpl_log(TMPL_LOG_DEBUG,"{endnext!=NULL}");
   } else {
-    tmpl_log(NULL,TMPL_LOG_DEBUG,"unknown(%c) as ival=%" EXPR_PRId64 "\n",(int) val.type,val.val.intval);
+    tmpl_log(TMPL_LOG_DEBUG,"unknown(%c) as ival=%" EXPR_PRId64 "\n",(int) val.type,val.val.intval);
   }
 }
 

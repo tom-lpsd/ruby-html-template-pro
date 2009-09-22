@@ -4,10 +4,12 @@
  * Created: Mon Jul 13 21:24:55 2009
  */
 
-#define PACKAGE_VERSION "0.0(not defined)"
-
 #ifdef HAVE_CONFIG_H
 #include "config.h"
+#endif
+
+#ifndef PACKAGE_VERSION
+#define PACKAGE_VERSION "0.0(not defined)"
 #endif
 
 /*************************************************

@@ -1,6 +1,8 @@
 #ifndef _PMISCDEF_H
 #define _PMISCDEF_H	1
 
+#include <string.h>
+
 /* snprintf MS VC++ support;
  * thanks to Viacheslav Sheveliov <slavash@aha.ru>
  */
@@ -30,6 +32,18 @@
 
 #define COMPILE_TIME_ASSERT(x) \
 void __cta_proto__(int __cta_foo__[(x) ? 1 : -1])
+
+#ifdef __GNUC__
+#define FORMAT_PRINTF(X,Y) __attribute__ ((__format__ (__printf__, X, Y)))
+#else
+#define FORMAT_PRINTF(X,Y)
+#endif
+
+#if defined(__GNUC__) && !(defined(PEDANTIC))
+#define INLINE inline
+#else /* !__GNUC__ */
+#define INLINE 
+#endif /* __GNUC__ */
 
 #endif /* pmiscdef.h */
 

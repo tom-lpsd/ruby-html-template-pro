@@ -28,7 +28,7 @@ tmplpro_set_expr_as_double (struct exprval* p,double dval) {
 API_IMPL 
 void 
 APICALL
-tmplpro_set_expr_as_string (struct exprval* p,char* sval) {
+tmplpro_set_expr_as_string (struct exprval* p, const char* sval) {
   p->type=EXPR_TYPE_PSTR;
   p->val.strval.begin=sval;
   p->val.strval.endnext=sval;
@@ -59,10 +59,9 @@ tmplpro_get_expr_type (struct exprval* p) {
   if (p->type == EXPR_TYPE_PSTR) {
     if (NULL==p->val.strval.begin) {
       p->val.strval.endnext=NULL;
-      /* TODO (ABI change)
       p->type = EXPR_TYPE_NULL;
-      */
     } else if (NULL==p->val.strval.endnext) {
+      /* should never happen */
       p->val.strval.endnext=p->val.strval.begin+strlen(p->val.strval.begin);
     }
   /* never happen; but let it be for future compatibility */
@@ -85,16 +84,6 @@ double
 APICALL
 tmplpro_get_expr_as_double (struct exprval* p) {
   return p->val.dblval;
-}
-
-API_IMPL 
-char*
-APICALL
-tmplpro_get_expr_as_string (struct exprval* p) {
-  /* BUG! incorrect implementation --- should always use a buffer */
-  PSTRING pval = p->val.strval;
-  *(pval.endnext)=0;
-  return pval.begin;
 }
 
 API_IMPL 
