@@ -22,7 +22,6 @@ module HTML
         initialize_tmpl_source args
         if @scalarref and @options[:filter]
           @scalarref = call_filters @scalarref
-          puts @scalarref
         end
         @filtered_template = {}
       end
