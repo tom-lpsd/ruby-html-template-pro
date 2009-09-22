@@ -155,5 +155,8 @@ module HTML
         return template
       end
     end
+
+    # alias
+    Expr = Pro
   end
 end
