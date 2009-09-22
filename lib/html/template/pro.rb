@@ -20,6 +20,10 @@ module HTML
           end
         end
         initialize_tmpl_source args
+        if @scalarref and @options[:filter]
+          @scalarref = call_filters @scalarref
+          puts @scalarref
+        end        
       end
 
       def param(args=nil)
@@ -114,6 +118,39 @@ module HTML
                end
              end
             ]
+      end
+
+      def load_template(filepath)
+        File.open(filepath, 'r') do |file|
+          call_filters file.read
+        end
+      end
+
+      def call_filters(template)
+        @options[:filter].each do |filter|
+          format, sub = case filter
+                        when Hash then filter.values_at(:format, :sub)
+                        when Proc then ['scalar', filter]
+                        else raise "bad value set for filter parameter - must be a Proc or a Hash object."
+                        end
+
+          unless format and sub
+            raise "bad value set for filter parameter - hash must contain \"format\" key and \"sub\" key."
+          end
+          unless format == 'array' or format == 'scalar'
+            raise "bad value set for filter parameter - \"format\" must be either 'array' or 'scalar'"
+          end
+          unless sub.instance_of? Proc
+            raise "bad value set for filter parameter - \"sub\" must be a code ref"
+          end
+
+          if format == 'scalar'
+            template = sub.call(template)
+          else
+            template = sub.call(template.split("\n").map {|str| str + "\n"}).join('')
+          end
+        end
+        return template
       end
     end
   end
