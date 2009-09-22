@@ -104,6 +104,27 @@ PSTRING get_string_from_value(VALUE self, char* key) {
 }
 
 static 
+PSTRING load_file (ABSTRACT_FILTER* callback_state, const char* filepath) {
+    PSTRING tmpl;
+    VALUE self = (VALUE)callback_state;
+    VALUE path = rb_str_new_cstr(filepath);
+    VALUE result = rb_funcall(self, rb_intern("load_template"), 1, path);
+    if (!NIL_P(result) && TYPE(result) == T_STRING) {
+        tmpl.begin   = StringValuePtr(result);
+        tmpl.endnext = tmpl.begin + RSTRING_LEN(result);
+    }
+    else {
+        rb_raise(rb_eRuntimeError, "Big trouble! load_template internal fatal error\n") ;
+    }
+    return tmpl;
+}
+
+static
+int unload_file(ABSTRACT_FILTER* callback_state, PSTRING memarea) {
+  return 0;
+}
+
+static 
 char** set_pathlist(VALUE self, VALUE options, char* param_name) {
     long i, len;
     struct ruby_callback_state *state;
@@ -136,6 +157,12 @@ process_tmplpro_options(VALUE self)
     tmplpro_set_option_GetAbstractArrayLengthFuncPtr(param, &get_ABSTRACT_ARRAY_length_impl);
     tmplpro_set_option_IsAbstractValTrueFuncPtr(param, &is_ABSTRACT_VALUE_true_impl);
     tmplpro_set_option_GetAbstractMapFuncPtr(param, &get_ABSTRACT_MAP_impl);
+    tmplpro_set_option_LoadFileFuncPtr(param, &load_file);
+    tmplpro_set_option_UnloadFileFuncPtr(param, &unload_file);
+
+    /*   setting ruby globals */
+    tmplpro_set_option_ext_filter_state(param, (ABSTRACT_FILTER *)self);
+    /*  end setting ruby globals */
 
     /* checking main arguments */
     PSTRING filename = get_string_from_value(self, "@filename");
@@ -162,6 +189,15 @@ process_tmplpro_options(VALUE self)
     if (NIL_P(options)) {
         rb_raise(rb_eRuntimeError, "FATAL:output:@options not found");
     }
+
+    /* setting filter */
+    VALUE filter_key = ID2SYM(rb_intern("filter"));
+    VALUE filter = rb_hash_aref(options, filter_key);
+    if (NIL_P(filter) || TYPE(filter) != T_ARRAY) {
+        rb_raise(rb_eRuntimeError, "FATAL:output:filter is not an array");
+    }
+    if (RARRAY_LEN(filter) >= 0) tmplpro_set_option_filters(param, 1);
+
     set_integer_from_hash(options,"max_includes",param,tmplpro_set_option_max_includes);
     set_boolean_from_hash(options,"no_includes",param,tmplpro_set_option_no_includes);
     set_boolean_from_hash(options,"search_path_on_include",param,tmplpro_set_option_search_path_on_include);

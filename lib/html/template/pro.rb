@@ -23,7 +23,8 @@ module HTML
         if @scalarref and @options[:filter]
           @scalarref = call_filters @scalarref
           puts @scalarref
-        end        
+        end
+        @filtered_template = {}
       end
 
       def param(args=nil)
@@ -122,7 +123,9 @@ module HTML
 
       def load_template(filepath)
         File.open(filepath, 'r') do |file|
-          call_filters file.read
+          # filtered template is used in internal. we store it to `self'
+          # to prevent gc.
+          @filtered_template[filepath] = call_filters file.read
         end
       end
 
