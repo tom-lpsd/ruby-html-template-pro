@@ -117,6 +117,13 @@ PSTRING get_string_from_value(VALUE self, char* key) {
 }
 
 static 
+int get_boolean_from_hash(VALUE options, char* keystr) {
+    VALUE key = ID2SYM(rb_intern(keystr));
+    VALUE val = rb_hash_aref(options, key);
+    return NIL_P(val) || TYPE(val) == T_FALSE ? 0 : 1;
+}
+
+static 
 PSTRING load_file (ABSTRACT_FILTER* callback_state, const char* filepath) {
     PSTRING tmpl;
     VALUE self = (VALUE)callback_state;
@@ -174,8 +181,16 @@ process_tmplpro_options(VALUE self)
     tmplpro_set_option_UnloadFileFuncPtr(param, &unload_file);
 
     /*   setting ruby globals */
+    tmplpro_set_option_ext_findfile_state(param, NULL);
     tmplpro_set_option_ext_filter_state(param, (ABSTRACT_FILTER *)self);
+    tmplpro_set_option_ext_calluserfunc_state(param, NULL);
+    tmplpro_set_option_ext_data_state(param, NULL);
     /*  end setting ruby globals */
+
+    if ((void*)self == NULL) {
+        rb_raise(rb_eRuntimeError, "FATAL:SELF:self was expected but not found");
+    }
+    Check_Type(self, T_OBJECT);
 
     /* checking main arguments */
     PSTRING filename = get_string_from_value(self, "@filename");
@@ -189,28 +204,23 @@ process_tmplpro_options(VALUE self)
     /* setting param_map */
     tmplpro_clear_option_param_map(param);
     VALUE map = rb_ivar_get(self, rb_intern("@params"));
-    if (NIL_P(map)) {
-        rb_raise(rb_eRuntimeError, "FATAL:output:@param not found");
-    }
+    Check_Type(map, T_HASH);
     tmplpro_push_option_param_map(param, (ABSTRACT_MAP*)map, 0);
     /* end setting param_map */
 
-    /* setting filter */
-    ;
-    /* end setting filter */
-
     VALUE options = rb_ivar_get(self, rb_intern("@options"));
-    if (NIL_P(options)) {
-        rb_raise(rb_eRuntimeError, "FATAL:output:@options not found");
-    }
+    Check_Type(options, T_HASH);
 
     /* setting filter */
     VALUE filter_key = ID2SYM(rb_intern("filter"));
     VALUE filter = rb_hash_aref(options, filter_key);
-    if (NIL_P(filter) || TYPE(filter) != T_ARRAY) {
-        rb_raise(rb_eRuntimeError, "FATAL:output:filter is not an array");
-    }
+    Check_Type(filter, T_ARRAY);
     if (RARRAY_LEN(filter) >= 0) tmplpro_set_option_filters(param, 1);
+    /* end setting filter */
+
+    if (!get_boolean_from_hash(options, "case_sensitive")) {
+        tmplpro_set_option_tmpl_var_case(param, ASK_NAME_LOWERCASE);
+    }
 
     set_integer_from_hash(options,"max_includes",param,tmplpro_set_option_max_includes);
     set_boolean_from_hash(options,"no_includes",param,tmplpro_set_option_no_includes);

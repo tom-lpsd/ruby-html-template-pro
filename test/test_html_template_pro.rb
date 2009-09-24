@@ -7,12 +7,12 @@ require 'html/template/pro'
 class TestHtmlTemplatePro < Test::Unit::TestCase
   def setup
     @varset1 = {
-      :VAR1 => 'VAR1', :VAR2 => 'VAR2',
+      :VAR1 => 'VAR1', :VAR2  => 'VAR2',
       :VAR3 => 'VAR3', :VAR10 => 'VAR10',
     }
     @varset2 = {
       :STUFF1 => '\<>"; %FA' + "hidden:\r\012end",
-      :STUFF2 => 'Срср пур',
+      :STUFF2 => 'Some"' + "' Txt'",
     }
     @refset1 = {
       :HASHREF0 => [],

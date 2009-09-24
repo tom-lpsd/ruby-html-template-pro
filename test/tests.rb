@@ -1,0 +1,5 @@
+require 'test/unit'
+require 'test/test_basic'
+require 'test/test_random'
+require 'test/test_coderefs'
+require 'test/test_html_template_pro'
