@@ -94,6 +94,7 @@ static
 void set_integer_from_hash(VALUE option_hash, char* key, struct tmplpro_param* param, set_int_option_functype setfunc) {
     VALUE option_key = ID2SYM(rb_intern(key));
     VALUE option_val = rb_hash_aref(option_hash, option_key);
+    if (NIL_P(option_val)) return;
     setfunc(param, NUM2INT(option_val));
 }
 
@@ -222,11 +223,12 @@ process_tmplpro_options(VALUE self)
         tmplpro_set_option_tmpl_var_case(param, ASK_NAME_LOWERCASE);
     }
 
+    set_integer_from_hash(options,"tmpl_var_case",param,tmplpro_set_option_tmpl_var_case);
     set_integer_from_hash(options,"max_includes",param,tmplpro_set_option_max_includes);
     set_boolean_from_hash(options,"no_includes",param,tmplpro_set_option_no_includes);
     set_boolean_from_hash(options,"search_path_on_include",param,tmplpro_set_option_search_path_on_include);
     set_boolean_from_hash(options,"global_vars",param,tmplpro_set_option_global_vars);
-    set_boolean_from_hash(options,"debug",param,tmplpro_set_option_debug);
+    set_integer_from_hash(options,"debug",param,tmplpro_set_option_debug);
     debuglevel = tmplpro_get_option_debug(param);
     set_boolean_from_hash(options,"loop_context_vars",param,tmplpro_set_option_loop_context_vars);
     set_boolean_from_hash(options,"path_like_variable_scope",param,tmplpro_set_option_path_like_variable_scope);

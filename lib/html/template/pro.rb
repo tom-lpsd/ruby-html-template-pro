@@ -8,6 +8,12 @@ module HTML
 
       INPUTS = [:filename, :filehandle, :arrayref, :scalarref, :source]
 
+      ASK_NAME_DEFAULT   = 0
+      ASK_NAME_AS_IS     = 1
+      ASK_NAME_LOWERCASE = 2
+      ASK_NAME_UPPERCASE = 4
+      ASK_NAME_MASK = ASK_NAME_AS_IS | ASK_NAME_LOWERCASE | ASK_NAME_UPPERCASE
+
       def initialize(args={})
         @options = default_options.merge(args)
         if args.keys.count(&INPUTS.method(:include?)) != 1
@@ -59,7 +65,7 @@ module HTML
         return {
           :param_map => {},
           :filter => [],
-          :debug => false,
+          :debug => 0,
           :max_includes => 10,
           :global_vars => false,
           :no_includes => false,
@@ -69,7 +75,8 @@ module HTML
           :path => [],
           :associate => [],
           :case_sensitive => false,
-          :strict => true,
+          :__strict_compatibility => true,
+          :strict => false,
           :die_on_bad_params => false,
         }
       end
