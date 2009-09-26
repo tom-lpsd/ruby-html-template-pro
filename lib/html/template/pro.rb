@@ -2,6 +2,20 @@ require 'html_template_internal'
 
 module HTML
   module Template
+
+    def Internal.register_functions_impl(registory, func_spec, &block)
+      if block && func_spec.kind_of?(Symbol)
+        registory[func_spec] = block
+      elsif func_spec.kind_of? Hash
+        unless func_spec.values.all?{|e| e.kind_of? Proc}
+          raise ArgumentError, "functions must be kind_of Proc"
+        end
+        registory.update(func_spec)
+      else
+        raise ArgumentError, "first argument must be symbol or hash contains functions"
+      end
+    end
+
     class Pro
 
       include HTML::Template::Internal
@@ -30,19 +44,6 @@ module HTML
         :rand    => lambda { |num|  rand num },
         :srand   => lambda { |seed| srand seed },
       }
-
-      def self.register_function(func_spec, &block)
-        if block && func_spec.kind_of?(Symbol)
-          @@func[func_spec] = block
-        elsif func_spec.kind_of? Hash
-          unless func_spec.values.all?{|e| e.kind_of? Proc}
-            raise ArgumentError, "functions must be kind_of Proc"
-          end
-          @@func.update(func_spec)
-        else
-          raise ArgumentError, "first argument must be symbol or hash contains functions"
-        end
-      end
 
       def initialize(args={})
         @options = default_options.merge(args)
@@ -89,6 +90,14 @@ module HTML
           exec_tmpl(output_string)
           return output_string
         end
+      end
+
+      def self.register_function(func_spec, &block)
+        HTML::Template::Internal.register_functions_impl(@@func, func_spec, &block)
+      end
+
+      def register_function(func_spec, &block)
+        HTML::Template::Internal.register_functions_impl(@options[:expr_func], func_spec, &block)
       end
 
       private
