@@ -3,17 +3,17 @@
 
 static int debuglevel = 0;
 
-struct ruby_callback_state {
+struct internal_state {
     char **pathlist;
 };
 
-static struct ruby_callback_state *new_ruby_callback_state() {
-    struct ruby_callback_state *state = (struct ruby_callback_state*)malloc(sizeof(struct ruby_callback_state));
+static struct internal_state *new_internal_state() {
+    struct internal_state *state = (struct internal_state*)malloc(sizeof(struct internal_state));
     state->pathlist = NULL;
     return state;
 }
 
-static void free_ruby_callback_state(struct ruby_callback_state *state) {
+static void free_internal_state(struct internal_state *state) {
     free(state->pathlist);
     free(state);
 }
@@ -155,6 +155,9 @@ ABSTRACT_USERFUNC* is_expr_userfnc (ABSTRACT_FUNCMAP* FuncHash, PSTRING name) {
 
 static
 void free_expr_arglist(ABSTRACT_ARGLIST* arglist) {
+    VALUE args = (VALUE)arglist;
+    VALUE registory = rb_ary_shift(args);
+    rb_hash_delete(registory, rb_obj_id(args));
     return;
 }
 
@@ -162,10 +165,11 @@ static
 ABSTRACT_ARGLIST* init_expr_arglist(ABSTRACT_CALLER* callback_state)
 {
     VALUE self = (VALUE)callback_state;
-    VALUE retval = rb_ary_new();
-    VALUE registory = rb_ivar_get(self, rb_intern("@expr_results"));
-    rb_ary_push(registory, retval);
-    return (ABSTRACT_ARGLIST*)retval;
+    VALUE registory = rb_ivar_get(self, rb_intern("@internal_expr_args"));
+    VALUE args = rb_ary_new();
+    rb_ary_push(args, registory);
+    rb_hash_aset(registory, rb_obj_id(args), args);
+    return (ABSTRACT_ARGLIST*)args;
 }
 
 static 
@@ -206,9 +210,12 @@ void call_expr_userfnc (ABSTRACT_CALLER* callback_state, ABSTRACT_ARGLIST* argli
         return;
     }
 
+    /* head of args is not a true aruguments(it is a regisotry of args). */
+    VALUE tmp = rb_ary_shift(args);
     VALUE retval = rb_proc_call(func, args);
-    VALUE registory = rb_ivar_get(self, rb_intern("@expr_results"));
-    rb_ary_push(registory, retval);
+    rb_ary_unshift(args, tmp);
+
+    VALUE registory = Qnil;
 
     switch (TYPE(retval)) {
     case T_FIXNUM:
@@ -224,6 +231,8 @@ void call_expr_userfnc (ABSTRACT_CALLER* callback_state, ABSTRACT_ARGLIST* argli
         tmplpro_set_expr_as_double(exprval, NUM2DBL(retval));
         break;
     default:
+        registory = rb_ivar_get(self, rb_intern("@internal_expr_results"));
+        rb_ary_push(registory, retval);
         retvalpstr.begin = StringValuePtr(retval);
 	retvalpstr.endnext = retvalpstr.begin + RSTRING_LEN(retval);
 	tmplpro_set_expr_as_pstring(exprval, retvalpstr);
@@ -235,12 +244,12 @@ void call_expr_userfnc (ABSTRACT_CALLER* callback_state, ABSTRACT_ARGLIST* argli
 static 
 char** set_pathlist(VALUE self, VALUE options, char* param_name) {
     long i, len;
-    struct ruby_callback_state *state;
+    struct internal_state *state;
     VALUE key = ID2SYM(rb_intern(param_name));
     VALUE paths = rb_hash_aref(options, key);
-    VALUE callback_state = rb_ivar_get(self, rb_intern("@callback"));
+    VALUE callback_state = rb_ivar_get(self, rb_intern("@internal_state"));
     if (NIL_P(paths) || NIL_P(callback_state)) return NULL;
-    Data_Get_Struct(callback_state, struct ruby_callback_state, state);
+    Data_Get_Struct(callback_state, struct internal_state, state);
     if (TYPE(paths) != T_ARRAY) rb_raise(rb_eRuntimeError, "path param is not array");
     len = RARRAY_LEN(paths);
     if (len < 0) return NULL;
@@ -353,24 +362,25 @@ release_tmplpro_options(struct tmplpro_param* param)
 }
 
 VALUE mHtml;
-VALUE mTemplate;
-VALUE mInternal;
-VALUE cHTMLTemplateInternalCallbackState;
+VALUE mHtmlTemplate;
+VALUE mHtmlTemplateInternal;
+VALUE cHtmlTemplateInternalState;
 
-static void set_callback_state(VALUE self)
+static void setup_internal(VALUE self)
 {
-    ID id = rb_intern("@callback");
-    struct ruby_callback_state *state = new_ruby_callback_state();
-    VALUE callback_state = Data_Wrap_Struct(cHTMLTemplateInternalCallbackState, 0,
-                                            &free_ruby_callback_state, state);
-    rb_ivar_set(self, id, callback_state);
+    struct internal_state *state = new_internal_state();
+    VALUE internal_state = Data_Wrap_Struct(cHtmlTemplateInternalState, 0,
+                                            &free_internal_state, state);
+    rb_ivar_set(self, rb_intern("@internal_state"), internal_state);
+    rb_ivar_set(self, rb_intern("@internal_expr_args"), rb_hash_new());
+    rb_ivar_set(self, rb_intern("@internal_expr_results"), rb_ary_new());
 }
 
 static VALUE exec_tmpl(VALUE self, VALUE output)
 {
     writer_functype writer;
     struct tmplpro_param* proparam;
-    set_callback_state(self);
+    setup_internal(self);
     proparam = process_tmplpro_options(self);
 
     switch (TYPE(output)) {
@@ -395,8 +405,8 @@ static VALUE exec_tmpl(VALUE self, VALUE output)
 void Init_html_template_internal(void)
 {
     mHtml = rb_define_module("HTML");
-    mTemplate = rb_define_module_under(mHtml, "Template");
-    mInternal = rb_define_module_under(mTemplate, "Internal");
-    rb_define_module_function(mInternal, "exec_tmpl", &exec_tmpl, 1);
-    cHTMLTemplateInternalCallbackState = rb_define_class_under(mInternal, "CallbackState", rb_cObject);
+    mHtmlTemplate = rb_define_module_under(mHtml, "Template");
+    mHtmlTemplateInternal = rb_define_module_under(mHtmlTemplate, "Internal");
+    rb_define_module_function(mHtmlTemplateInternal, "exec_tmpl", &exec_tmpl, 1);
+    cHtmlTemplateInternalState = rb_define_class_under(mHtmlTemplateInternal, "State", rb_cObject);
 }

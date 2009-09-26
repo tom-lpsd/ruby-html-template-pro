@@ -62,7 +62,6 @@ module HTML
           @scalarref = call_filters @scalarref
         end
         @filtered_template = {}
-        @expr_results = []
       end
 
       def param(args=nil, &block)
