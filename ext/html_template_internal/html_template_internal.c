@@ -43,7 +43,7 @@ PSTRING ABSTRACT_VALUE2PSTRING_impl (ABSTRACT_DATASTATE *none, ABSTRACT_VALUE* v
 
     if (valptr == NULL) return retval;
 
-    if (rb_obj_is_instance_of(val, rb_cProc)) {
+    if (rb_obj_is_kind_of(val, rb_cProc)) {
         val = rb_proc_call(val, rb_ary_new());
     }
 
@@ -62,7 +62,7 @@ int is_ABSTRACT_VALUE_true_impl (ABSTRACT_DATASTATE *none, ABSTRACT_VALUE* valpt
 
     if (NIL_P(val)) return 0;
 
-    if (rb_obj_is_instance_of(val, rb_cProc)) {
+    if (rb_obj_is_kind_of(val, rb_cProc)) {
         val = rb_proc_call(val, rb_ary_new());
     }
 
@@ -200,7 +200,7 @@ void call_expr_userfnc (ABSTRACT_CALLER* callback_state, ABSTRACT_ARGLIST* argli
         rb_raise(rb_eRuntimeError, "FATAL INTERNAL ERROR:Call_EXPR:function called but not exists");
         tmplpro_set_expr_as_pstring(exprval, retvalpstr);
         return;
-    } else if (NIL_P(func) || !rb_obj_is_instance_of(func, rb_cProc)) {
+    } else if (NIL_P(func) || !rb_obj_is_kind_of(func, rb_cProc)) {
         rb_raise(rb_eRuntimeError, "FATAL INTERNAL ERROR:Call_EXPR:not a Proc object");
         tmplpro_set_expr_as_pstring(exprval, retvalpstr);
         return;
