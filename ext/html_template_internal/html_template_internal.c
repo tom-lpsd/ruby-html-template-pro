@@ -159,9 +159,13 @@ void free_expr_arglist(ABSTRACT_ARGLIST* arglist) {
 }
 
 static 
-ABSTRACT_ARGLIST* init_expr_arglist(ABSTRACT_CALLER* none)
+ABSTRACT_ARGLIST* init_expr_arglist(ABSTRACT_CALLER* callback_state)
 {
-    return (ABSTRACT_ARGLIST*)rb_ary_new();
+    VALUE self = (VALUE)callback_state;
+    VALUE retval = rb_ary_new();
+    VALUE registory = rb_ivar_get(self, rb_intern("@expr_results"));
+    rb_ary_push(registory, retval);
+    return (ABSTRACT_ARGLIST*)retval;
 }
 
 static 
@@ -187,24 +191,34 @@ void push_expr_arglist(ABSTRACT_ARGLIST* arglist, ABSTRACT_EXPRVAL* exprval)
 static 
 void call_expr_userfnc (ABSTRACT_CALLER* callback_state, ABSTRACT_ARGLIST* arglist, ABSTRACT_USERFUNC* hashvalptr, ABSTRACT_EXPRVAL* exprval) {
     char* empty = "";
+    VALUE self = (VALUE)callback_state;
     VALUE func = (VALUE)hashvalptr;
     VALUE args = (VALUE)arglist;
     PSTRING retvalpstr = { empty, empty };
 
     if (hashvalptr==NULL) {
-//        rb_raise(rb_eRuntimeError, "FATAL INTERNAL ERROR:Call_EXPR:function called but not exists");
+        rb_raise(rb_eRuntimeError, "FATAL INTERNAL ERROR:Call_EXPR:function called but not exists");
         tmplpro_set_expr_as_pstring(exprval, retvalpstr);
         return;
     } else if (NIL_P(func) || !rb_obj_is_instance_of(func, rb_cProc)) {
-//        rb_raise(rb_eRuntimeError, "FATAL INTERNAL ERROR:Call_EXPR:not a Proc object");
+        rb_raise(rb_eRuntimeError, "FATAL INTERNAL ERROR:Call_EXPR:not a Proc object");
         tmplpro_set_expr_as_pstring(exprval, retvalpstr);
         return;
     }
 
     VALUE retval = rb_proc_call(func, args);
+    VALUE registory = rb_ivar_get(self, rb_intern("@expr_results"));
+    rb_ary_push(registory, retval);
+
     switch (TYPE(retval)) {
     case T_FIXNUM:
 	tmplpro_set_expr_as_int64(exprval, FIX2LONG(retval));
+        break;
+    case T_TRUE:
+	tmplpro_set_expr_as_int64(exprval, 1);
+        break;
+    case T_FALSE:
+	tmplpro_set_expr_as_int64(exprval, 0);
         break;
     case T_FLOAT:
         tmplpro_set_expr_as_double(exprval, NUM2DBL(retval));
@@ -255,10 +269,10 @@ process_tmplpro_options(VALUE self)
     tmplpro_set_option_UnloadFileFuncPtr(param, &unload_file);
 
     /*   setting ruby globals */
-    tmplpro_set_option_ext_findfile_state(param, NULL);
+    tmplpro_set_option_ext_findfile_state(param, (ABSTRACT_FINDFILE *)self);
     tmplpro_set_option_ext_filter_state(param, (ABSTRACT_FILTER *)self);
-    tmplpro_set_option_ext_calluserfunc_state(param, NULL);
-    tmplpro_set_option_ext_data_state(param, NULL);
+    tmplpro_set_option_ext_calluserfunc_state(param, (ABSTRACT_CALLER *)self);
+    tmplpro_set_option_ext_data_state(param, (ABSTRACT_DATASTATE *)self);
     /*  end setting ruby globals */
 
     /*   setting initial Expr hooks */
@@ -371,7 +385,6 @@ static VALUE exec_tmpl(VALUE self, VALUE output)
         writer = &write_chars_to_file;
         output = rb_stdout;
     }
-
     tmplpro_set_option_WriterFuncPtr(proparam, writer);
     tmplpro_set_option_ext_writer_state(proparam, (ABSTRACT_WRITER *)output);
     int retval = tmplpro_exec_tmpl(proparam);

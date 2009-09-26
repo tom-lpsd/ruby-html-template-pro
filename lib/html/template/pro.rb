@@ -31,6 +31,19 @@ module HTML
         :srand   => lambda { |seed| srand seed },
       }
 
+      def self.register_function(func_spec, &block)
+        if block && func_spec.kind_of?(Symbol)
+          @@func[func_spec] = block
+        elsif func_spec.kind_of? Hash
+          unless func_spec.values.all?{|e| e.kind_of? Proc}
+            raise ArgumentError, "functions must be kind_of Proc"
+          end
+          @@func.update(func_spec)
+        else
+          raise ArgumentError, "first argument must be symbol or hash contains functions"
+        end
+      end
+
       def initialize(args={})
         @options = default_options.merge(args)
         if args.keys.count(&INPUTS.method(:include?)) != 1
@@ -48,6 +61,7 @@ module HTML
           @scalarref = call_filters @scalarref
         end
         @filtered_template = {}
+        @expr_results = []
       end
 
       def param(args=nil, &block)

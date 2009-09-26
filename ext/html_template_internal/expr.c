@@ -1758,7 +1758,7 @@ yyreduce:
   case 38:
 #line 190 "expr.y"
     {
-  (yyvsp[(1) - (3)].extfunc).arglist=state->param->InitExprArglistFuncPtr(state->param->expr_func_map);
+  (yyvsp[(1) - (3)].extfunc).arglist=state->param->InitExprArglistFuncPtr(state->param->ext_calluserfunc_state);
   pusharg_expr_userfunc(exprobj,state->param,(yyvsp[(1) - (3)].extfunc),(yyvsp[(3) - (3)].numval));
   (yyval.extfunc) = (yyvsp[(1) - (3)].extfunc);
 }
