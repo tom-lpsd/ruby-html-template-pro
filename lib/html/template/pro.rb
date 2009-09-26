@@ -14,6 +14,23 @@ module HTML
       ASK_NAME_UPPERCASE = 4
       ASK_NAME_MASK = ASK_NAME_AS_IS | ASK_NAME_LOWERCASE | ASK_NAME_UPPERCASE
 
+      @@func = {
+        # note that length,defined,sin,cos,log,tan,... are built-in
+        :sprintf => lambda { |*args| sprintf *args },
+        :substr  => lambda { |str, *args| args.size == 2 ? str[*args] : str[args[0]..-1] },
+        :lc      => lambda { |str| str.downcase },
+        :lcfirst => lambda { |str| str[0,1].downcase + str[1..-1] },
+        :uc      => lambda { |str| str.upcase },
+        :ucfirst => lambda { |str| str.capitalize },
+#        :length  => lambda { |str| str.length },
+#        :defined => lambda { |obj| obj.nil? },
+#        :abs     => lambda { |num| num.abs },
+#        :hex     => lambda { |obj| obj.to_s.hex },
+#        :oct     => lambda { |obj| obj.to_s.oct },
+        :rand    => lambda { |num|  rand num },
+        :srand   => lambda { |seed| srand seed },
+      }
+
       def initialize(args={})
         @options = default_options.merge(args)
         if args.keys.count(&INPUTS.method(:include?)) != 1
@@ -25,6 +42,7 @@ module HTML
             @options[opt] = [ @options[opt] ]
           end
         end
+        @options[:expr_func] = @@func.merge(@options[:functions] || {})
         initialize_tmpl_source args
         if @scalarref and @options[:filter]
           @scalarref = call_filters @scalarref

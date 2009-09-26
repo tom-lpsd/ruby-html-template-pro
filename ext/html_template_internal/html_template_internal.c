@@ -146,6 +146,79 @@ int unload_file(ABSTRACT_FILTER* callback_state, PSTRING memarea) {
 }
 
 static 
+ABSTRACT_USERFUNC* is_expr_userfnc (ABSTRACT_FUNCMAP* FuncHash, PSTRING name) {
+    VALUE key = ID2SYM(rb_intern2(name.begin, name.endnext - name.begin));
+    VALUE val = rb_hash_aref((VALUE)FuncHash, key);
+    if (NIL_P(val)) return NULL;
+    return (ABSTRACT_USERFUNC *)val;
+}
+
+static
+void free_expr_arglist(ABSTRACT_ARGLIST* arglist) {
+    return;
+}
+
+static 
+ABSTRACT_ARGLIST* init_expr_arglist(ABSTRACT_CALLER* none)
+{
+    return (ABSTRACT_ARGLIST*)rb_ary_new();
+}
+
+static 
+void push_expr_arglist(ABSTRACT_ARGLIST* arglist, ABSTRACT_EXPRVAL* exprval)
+{
+    VALUE val = Qnil;
+    int exprval_type = tmplpro_get_expr_type(exprval);
+    PSTRING parg;
+    switch (exprval_type) {
+    case EXPR_TYPE_NULL: val = Qnil; break;
+    case EXPR_TYPE_INT:  val = INT2NUM(tmplpro_get_expr_as_int64(exprval)); break;
+    case EXPR_TYPE_DBL:  val = rb_float_new(tmplpro_get_expr_as_double(exprval)); break;
+    case EXPR_TYPE_PSTR:
+        parg = tmplpro_get_expr_as_pstring(exprval);
+        val = rb_str_new(parg.begin, parg.endnext - parg.begin);
+        break;
+    default:
+        rb_raise(rb_eRuntimeError, "Ruby wrapper: FATAL INTERNAL ERROR:Unsupported type %d in exprval", exprval_type);
+    }
+    rb_ary_push((VALUE)arglist, val);
+}
+
+static 
+void call_expr_userfnc (ABSTRACT_CALLER* callback_state, ABSTRACT_ARGLIST* arglist, ABSTRACT_USERFUNC* hashvalptr, ABSTRACT_EXPRVAL* exprval) {
+    char* empty = "";
+    VALUE func = (VALUE)hashvalptr;
+    VALUE args = (VALUE)arglist;
+    PSTRING retvalpstr = { empty, empty };
+
+    if (hashvalptr==NULL) {
+//        rb_raise(rb_eRuntimeError, "FATAL INTERNAL ERROR:Call_EXPR:function called but not exists");
+        tmplpro_set_expr_as_pstring(exprval, retvalpstr);
+        return;
+    } else if (NIL_P(func) || !rb_obj_is_instance_of(func, rb_cProc)) {
+//        rb_raise(rb_eRuntimeError, "FATAL INTERNAL ERROR:Call_EXPR:not a Proc object");
+        tmplpro_set_expr_as_pstring(exprval, retvalpstr);
+        return;
+    }
+
+    VALUE retval = rb_proc_call(func, args);
+    switch (TYPE(retval)) {
+    case T_FIXNUM:
+	tmplpro_set_expr_as_int64(exprval, FIX2LONG(retval));
+        break;
+    case T_FLOAT:
+        tmplpro_set_expr_as_double(exprval, NUM2DBL(retval));
+        break;
+    default:
+        retvalpstr.begin = StringValuePtr(retval);
+	retvalpstr.endnext = retvalpstr.begin + RSTRING_LEN(retval);
+	tmplpro_set_expr_as_pstring(exprval, retvalpstr);
+    }
+
+    return;
+}
+
+static 
 char** set_pathlist(VALUE self, VALUE options, char* param_name) {
     long i, len;
     struct ruby_callback_state *state;
@@ -188,6 +261,14 @@ process_tmplpro_options(VALUE self)
     tmplpro_set_option_ext_data_state(param, NULL);
     /*  end setting ruby globals */
 
+    /*   setting initial Expr hooks */
+    tmplpro_set_option_InitExprArglistFuncPtr(param, &init_expr_arglist);
+    tmplpro_set_option_FreeExprArglistFuncPtr(param, &free_expr_arglist);
+    tmplpro_set_option_PushExprArglistFuncPtr(param, &push_expr_arglist);
+    tmplpro_set_option_CallExprUserfncFuncPtr(param, &call_expr_userfnc);
+    tmplpro_set_option_IsExprUserfncFuncPtr(param, &is_expr_userfnc);
+    /* end setting initial hooks */
+
     if ((void*)self == NULL) {
         rb_raise(rb_eRuntimeError, "FATAL:SELF:self was expected but not found");
     }
@@ -211,6 +292,15 @@ process_tmplpro_options(VALUE self)
 
     VALUE options = rb_ivar_get(self, rb_intern("@options"));
     Check_Type(options, T_HASH);
+
+    /* setting expr_func */
+    VALUE expr_key = ID2SYM(rb_intern("expr_func"));
+    VALUE expr = rb_hash_aref(options, expr_key);
+    if (!expr || NIL_P(expr) || TYPE(expr) != T_HASH) {
+        rb_raise(rb_eRuntimeError, "FATAL:output:EXPR user functions not found");
+    }
+    tmplpro_set_option_expr_func_map(param, (ABSTRACT_FUNCMAP *)expr);
+    /* end setting expr_func */
 
     /* setting filter */
     VALUE filter_key = ID2SYM(rb_intern("filter"));
