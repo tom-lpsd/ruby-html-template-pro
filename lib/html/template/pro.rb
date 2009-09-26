@@ -47,11 +47,11 @@ module HTML
       def initialize(args={})
         @options = default_options.merge(args)
         if args.keys.count(&INPUTS.method(:include?)) != 1
-          raise "HTML::Template::Pro.new called with multiple (or no) template sources specified!"
+          raise ArgumentError, "HTML::Template::Pro.new called with multiple (or no) template sources specified!"
         end
         @params = @options[:param_map]
         [:path, :associate, :filter].each do |opt|
-          unless @options[opt].instance_of? Array
+          unless @options[opt].kind_of? Array
             @options[opt] = [ @options[opt] ]
           end
         end
@@ -66,7 +66,7 @@ module HTML
 
       def param(args=nil, &block)
         return @params.keys if args.nil?
-        if !(args.instance_of? Hash)
+        if !(args.kind_of? Hash)
           key = @options[:case_sensitive] ? args : args.downcase
           if block
             return @params[key] = block
@@ -184,7 +184,7 @@ module HTML
           unless format == 'array' or format == 'scalar'
             raise "bad value set for filter parameter - \"format\" must be either 'array' or 'scalar'"
           end
-          unless sub.instance_of? Proc
+          unless sub.kind_of? Proc
             raise "bad value set for filter parameter - \"sub\" must be a code ref"
           end
 
