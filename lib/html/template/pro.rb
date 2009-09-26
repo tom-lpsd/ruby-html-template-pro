@@ -164,7 +164,7 @@ module HTML
              orighash.map do |key, val|
                case val
                when Array then [key.downcase, val.map(&(method :lowercase_keys))]
-               when Proc  then [key.downcase, val.call]
+               when Proc  then [key.downcase, val]
                else [key.downcase, val]
                end
              end
