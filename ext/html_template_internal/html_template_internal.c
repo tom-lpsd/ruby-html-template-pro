@@ -230,6 +230,9 @@ void call_expr_userfnc (ABSTRACT_CALLER* callback_state, ABSTRACT_ARGLIST* argli
     case T_FLOAT:
         tmplpro_set_expr_as_double(exprval, NUM2DBL(retval));
         break;
+    case T_NIL:
+        tmplpro_set_expr_as_null(exprval);
+        break;
     default:
         registory = rb_ivar_get(self, rb_intern("@internal_expr_results"));
         rb_ary_push(registory, retval);
