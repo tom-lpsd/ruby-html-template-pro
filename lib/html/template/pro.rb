@@ -82,6 +82,13 @@ module HTML
       end
 
       def output(options={})
+
+        @options[:associate].reverse.each do |assoc|
+          assoc.param.each do |key|
+            param(key => assoc.param(key)) unless @params[key]
+          end
+        end
+
         if (options.include? :print_to)
           exec_tmpl(options[:print_to])
         else
@@ -89,6 +96,10 @@ module HTML
           exec_tmpl(output_string)
           return output_string
         end
+      end
+
+      def self.new_filehandle(file)
+        self.new(:filehandle => file)
       end
 
       def self.register_function(func_spec, &block)

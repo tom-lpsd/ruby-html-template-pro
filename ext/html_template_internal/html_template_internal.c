@@ -118,6 +118,17 @@ PSTRING get_string_from_value(VALUE self, char* key) {
 }
 
 static 
+PSTRING get_string_from_hash(VALUE hash, char* key_string) {
+    VALUE key = ID2SYM(rb_intern(key_string));
+    VALUE val = rb_hash_aref(hash, key);
+    PSTRING retval={NULL,NULL};
+    if (NIL_P(val)) return retval;
+    retval.begin = StringValuePtr(val);
+    retval.endnext = retval.begin + RSTRING_LEN(val);
+    return retval;
+}
+
+static 
 int get_boolean_from_hash(VALUE options, char* keystr) {
     VALUE key = ID2SYM(rb_intern(keystr));
     VALUE val = rb_hash_aref(options, key);
@@ -269,6 +280,8 @@ static struct tmplpro_param*
 process_tmplpro_options(VALUE self)
 {
     struct tmplpro_param* param = tmplpro_param_init();
+    const char* tmpstring;
+    int default_escape=HTML_TEMPLATE_OPT_ESCAPE_NO;
 
     tmplpro_set_option_WriterFuncPtr(param, &write_chars_to_string);
     tmplpro_set_option_GetAbstractValFuncPtr(param, &get_ABSTRACT_VALUE_impl);
@@ -280,13 +293,6 @@ process_tmplpro_options(VALUE self)
     tmplpro_set_option_LoadFileFuncPtr(param, &load_file);
     tmplpro_set_option_UnloadFileFuncPtr(param, &unload_file);
 
-    /*   setting ruby globals */
-    tmplpro_set_option_ext_findfile_state(param, (ABSTRACT_FINDFILE *)self);
-    tmplpro_set_option_ext_filter_state(param, (ABSTRACT_FILTER *)self);
-    tmplpro_set_option_ext_calluserfunc_state(param, (ABSTRACT_CALLER *)self);
-    tmplpro_set_option_ext_data_state(param, (ABSTRACT_DATASTATE *)self);
-    /*  end setting ruby globals */
-
     /*   setting initial Expr hooks */
     tmplpro_set_option_InitExprArglistFuncPtr(param, &init_expr_arglist);
     tmplpro_set_option_FreeExprArglistFuncPtr(param, &free_expr_arglist);
@@ -294,6 +300,13 @@ process_tmplpro_options(VALUE self)
     tmplpro_set_option_CallExprUserfncFuncPtr(param, &call_expr_userfnc);
     tmplpro_set_option_IsExprUserfncFuncPtr(param, &is_expr_userfnc);
     /* end setting initial hooks */
+
+    /*   setting ruby globals */
+    tmplpro_set_option_ext_findfile_state(param, (ABSTRACT_FINDFILE *)self);
+    tmplpro_set_option_ext_filter_state(param, (ABSTRACT_FILTER *)self);
+    tmplpro_set_option_ext_calluserfunc_state(param, (ABSTRACT_CALLER *)self);
+    tmplpro_set_option_ext_data_state(param, (ABSTRACT_DATASTATE *)self);
+    /*  end setting ruby globals */
 
     if ((void*)self == NULL) {
         rb_raise(rb_eRuntimeError, "FATAL:SELF:self was expected but not found");
@@ -309,13 +322,6 @@ process_tmplpro_options(VALUE self)
         rb_raise(rb_eRuntimeError, "bad arguments: expected filename or scalarref");
     }
 
-    /* setting param_map */
-    tmplpro_clear_option_param_map(param);
-    VALUE map = rb_ivar_get(self, rb_intern("@params"));
-    Check_Type(map, T_HASH);
-    tmplpro_push_option_param_map(param, (ABSTRACT_MAP*)map, 0);
-    /* end setting param_map */
-
     VALUE options = rb_ivar_get(self, rb_intern("@options"));
     Check_Type(options, T_HASH);
 
@@ -327,6 +333,13 @@ process_tmplpro_options(VALUE self)
     }
     tmplpro_set_option_expr_func_map(param, (ABSTRACT_FUNCMAP *)expr);
     /* end setting expr_func */
+
+    /* setting param_map */
+    tmplpro_clear_option_param_map(param);
+    VALUE map = rb_ivar_get(self, rb_intern("@params"));
+    Check_Type(map, T_HASH);
+    tmplpro_push_option_param_map(param, (ABSTRACT_MAP*)map, 0);
+    /* end setting param_map */
 
     /* setting filter */
     VALUE filter_key = ID2SYM(rb_intern("filter"));
@@ -350,6 +363,27 @@ process_tmplpro_options(VALUE self)
     set_boolean_from_hash(options,"path_like_variable_scope",param,tmplpro_set_option_path_like_variable_scope);
     /* still unsupported */
     set_boolean_from_hash(options,"strict",param,tmplpro_set_option_strict);
+
+    tmpstring = get_string_from_hash(options, "default_escape").begin;
+    if (tmpstring && *tmpstring) {
+        switch (*tmpstring) {
+        case '1': case 'H': case 'h': 	/* HTML*/
+            default_escape = HTML_TEMPLATE_OPT_ESCAPE_HTML;
+            break;
+        case 'U': case 'u': 		/* URL */
+            default_escape = HTML_TEMPLATE_OPT_ESCAPE_URL;
+            break;
+        case 'J': case 'j':		/* JS  */
+            default_escape = HTML_TEMPLATE_OPT_ESCAPE_JS;
+            break;
+        case '0': case 'N': case 'n': /* 0 or NONE */
+            default_escape = HTML_TEMPLATE_OPT_ESCAPE_NO;
+            break;
+        default:
+            rb_warn("unsupported value of default_escape=%s. Valid values are HTML, URL or JS.\n",tmpstring);
+        }
+        tmplpro_set_option_default_escape(param, default_escape);
+    }
 
     /* set path */
     tmplpro_set_option_path(param, set_pathlist(self, options, "path"));
