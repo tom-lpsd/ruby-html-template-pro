@@ -307,6 +307,7 @@ class TestHtmlTemplate < Test::Unit::TestCase
       output = file.read
     end
     assert_match /Bar/, output
+    File.delete('test.out')
 
     template_source = <<END_OF_TMPL
   I am a <TMPL_VAR NAME="adverb"> <TMPL_VAR NAME="ADVERB"> simple template.
