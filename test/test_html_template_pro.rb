@@ -152,8 +152,8 @@ class TestHtmlTemplatePro < Test::Unit::TestCase
   def test_tmpl_expr(file, *args)
     Dir.chdir 'templates-Pro'
     tmpl = HTML::Template::Pro.new(:filename => file + '.tmpl',
-                                   :loop_context_vars => 1,
-                                   :case_sensitive => 1,
+                                   :loop_context_vars => true,
+                                   :case_sensitive => true,
                                    :tmpl_var_case => HTML::Template::Pro::ASK_NAME_UPPERCASE | HTML::Template::Pro::ASK_NAME_AS_IS,
                                    :debug => $DEBUG || 0,
                                    :functions => { :hello => lambda { |x| "hi, #{x}!" } }
