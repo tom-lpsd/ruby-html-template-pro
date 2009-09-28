@@ -17,8 +17,6 @@ refset1 = {
              ]
 }
 
-VAR1, VAR2, VAR3, VAR10 = %w{VAR1 VAR2 VAR3 VAR10}
-
 # -------------------------
 
 def test_tmpl(file, *args)
