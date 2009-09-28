@@ -1,0 +1,17 @@
+<HTML>
+<body>
+<H1> test_loop1 </H1>
+
+We test empty and undefined loops
+
+<% params[:HASHREF0] && params[:HASHREF0].each do |param| %> 
+test failed <%= param[:VAR1] %> test failed
+<% end %> 
+
+<% params[:FAKENAME] && params[:FAKENAME].each do |param| %>
+test failed <%= param[:VAR1] %> test failed
+<% end %>
+
+
+</body>
+</HTML>

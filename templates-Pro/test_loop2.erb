@@ -1,0 +1,19 @@
+<HTML>
+<body>
+<H1> test_loop2 </H1>
+
+We test simple loop
+
+<table>
+<% params[:HASHREF1].each do |param| %>
+<tr>
+<td><%= param[:LOOPVAR1] %></td>
+<td><%= param[:LOOPVAR2] %></td>
+<td><%= param[:LOOPVAR3] %></td>
+<td><%= param[:LOOPVAR0] %></td>
+</tr>
+<% end %>
+</table>
+
+</body>
+</HTML>

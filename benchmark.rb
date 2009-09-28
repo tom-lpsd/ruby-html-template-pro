@@ -123,14 +123,14 @@ end
 
 test_tmpl('test_var1', varset1);
 test_tmpl('test_var2', varset1);
+test_tmpl('test_loop1', varset1, refset1);
+test_tmpl('test_loop2', varset1, refset1);
 
 __END__
 test_tmpl('test_var3', varset1, varset2);
 test_tmpl('test_if1',  varset1);
 test_tmpl('test_if2',  varset1);
 test_tmpl('test_if3',  refset1);
-test_tmpl('test_loop1', varset1, refset1);
-test_tmpl('test_loop2', varset1, refset1);
 test_tmpl('test_loop3', varset1, refset1);
 test_tmpl('test_loop4', varset1, refset1);
 test_tmpl('test_loop5', varset1, refset1);
