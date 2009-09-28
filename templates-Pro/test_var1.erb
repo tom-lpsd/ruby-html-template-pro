@@ -1,0 +1,23 @@
+<H1> test_var1 </H1>
+------------------ <br>
+<bar Name>
+
+<%= params[:VAR1] %> step1
+
+<%=
+params[:VAR1] %> <%= params[:VAR1] %>  step3 <%= params[:VAR1] %>   <%=
+params[:VAR2] %> step5 <%=
+params[:VAR3] %> step6 <%= params[:VAR10] %> step7
+<BR> <%= params[:VAR10] %> step8  <%= params[:VAR10] %> step9
+
+<%= params[:VAR1] %> step10
+
+<%= (defined? params[:VAR4]) ? params[:VAR4] : "test 1 passed. ':)" %>
+
+template tags could be decorated as html comments
+<%= (defined? params[:VAR4]) ? params[:VAR4] : "test 2 passed. ':)" %>
+
+template tags could also be decorated as xml (starting from version 0.90)
+<%= params[:VAR1] %> no trailing slash here.
+----- end ------- <br>
+<H1> end test_var1 </H1>
