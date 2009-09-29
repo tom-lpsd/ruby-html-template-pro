@@ -18,6 +18,8 @@ module HTML
 
     class Pro
 
+      VERSION = "0.0.1"
+
       include HTML::Template::Internal
 
       INPUTS = [:filename, :filehandle, :arrayref, :scalarref, :source]

@@ -1,0 +1,52 @@
+= tmplpro
+
+* http://github.com/tom-lpsd/ruby-html-template-pro
+
+== DESCRIPTION:
+
+A Ruby port of HTML::Template::Pro (template engine originally written
+in Perl and XS). 
+
+== FEATURES/PROBLEMS:
+
+* Fast. (Main part is written in C.)
+* Simple. (It avoids mixing up complex logic in View.)
+
+== SYNOPSIS:
+
+  # foo.rb
+  require 'html/template/pro'
+  
+  template = HTML::Template::Pro.new(:filename => 'foo.tmpl')
+  template.param(:param1 => 100)
+  puts template.output
+  
+  # foo.tmpl
+  <html>
+    <head></head>
+    <body>
+      <h1><TMPL_VAR NAME="param1"></h1>
+    </body>
+  </html>
+
+  # results
+  $ ruby foo.rb
+  <html>
+    <head></head>
+    <body>
+      <h1>100</h1>
+    </body>
+  </html>
+  
+
+== REQUIREMENTS:
+
+* C99 C compiler.
+
+== INSTALL:
+
+* sudo gem install html-template-pro
+
+== LICENSE:
+
+LGPL

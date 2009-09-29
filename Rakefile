@@ -1,17 +1,22 @@
 require 'rubygems'
-require 'rake/gempackagetask'
+gem 'hoe', '>= 2.1.0'
+require 'hoe'
+require 'fileutils'
+
+Hoe.plugin :newgem
+Hoe.plugin :website
+
+$hoe = Hoe.spec 'html-template-pro' do
+  self.developer 'Tsuruhara Tom', 'tom.lpsd@gmail.com'
+  self.rubyforge_name = 'tmplpro'
+  self.version = "0.0.1"
+  self.summary = 'A Ruby port of HTML::Template::Pro'
+end
+
+$hoe.define_spec
+
+require 'newgem/tasks'
+Dir['tasks/**/*.rake'].each { |t| load t }
+
 require 'rake/extensiontask'
-
-spec = Gem::Specification.new do |s|
-  s.name = "ruby-html-template-pro"
-  s.platform = Gem::Platform::RUBY
-  s.files = FileList["ext/**/*", "lib/**/*"]
-  s.extensions = FileList["ext/**/extconf.rb"]
-  s.summary = 'ruby port of perl library HTML-Template-Pro'
-  s.version = '0.0.1'
-end
-
-Rake::GemPackageTask.new(spec) do |pkg|
-end
-
-Rake::ExtensionTask.new('html_template_internal', spec)
+Rake::ExtensionTask.new('html_template_internal', $hoe.spec)
