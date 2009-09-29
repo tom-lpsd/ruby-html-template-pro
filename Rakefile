@@ -13,10 +13,5 @@ $hoe = Hoe.spec 'html-template-pro' do
   self.summary = 'A Ruby port of HTML::Template::Pro'
 end
 
-$hoe.define_spec
-
 require 'newgem/tasks'
 Dir['tasks/**/*.rake'].each { |t| load t }
-
-require 'rake/extensiontask'
-Rake::ExtensionTask.new('html_template_internal', $hoe.spec)
