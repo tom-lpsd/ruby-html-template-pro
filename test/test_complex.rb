@@ -15,14 +15,14 @@ class TestComplex < Test::Unit::TestCase
 
     output = template.output()
 
-    assert_match /Foo is greater than 10/i, output, "greater than"
-    assert_no_match /Bar and Foo/i, output, "and"
-    assert_match /Bar or Foo/i, output, "or"
-    assert_match /Bar - Foo = -11/i, output, "subtraction"
-    assert_match /Math Works, Alright/i, output, "math"
-    assert_match /My name is President Clinton/, output, "string op 1"
-    assert_match /Resident Alien is phat/, output, "string op 2"
-    assert_match /Resident has 8 letters, which is less than 10 and greater than 5/, output, "string length"
+    assert_match(/Foo is greater than 10/i, output, "greater than")
+    assert_no_match(/Bar and Foo/i, output, "and")
+    assert_match(/Bar or Foo/i, output, "or")
+    assert_match(/Bar - Foo = -11/i, output, "subtraction")
+    assert_match(/Math Works, Alright/i, output, "math")
+    assert_match(/My name is President Clinton/, output, "string op 1")
+    assert_match(/Resident Alien is phat/, output, "string op 2")
+    assert_match(/Resident has 8 letters, which is less than 10 and greater than 5/, output, "string length")
 
     template = HTML::Template::Expr.new(:path     => ['test/templates'],
                                         :filename => 'loop.tmpl',
@@ -73,7 +73,7 @@ class TestComplex < Test::Unit::TestCase
                                ])
 
     output = template.output
-    assert_match /Foo is less than 10.\s+Foo is greater than 10.\s+Foo is greater than 10./, output, "math in loops"
+    assert_match(/Foo is less than 10.\s+Foo is greater than 10.\s+Foo is greater than 10./, output, "math in loops")
 
     # test user-defined functions
     repeat = ->(x, y) { x * y }
@@ -86,8 +86,8 @@ class TestComplex < Test::Unit::TestCase
     template.param(:repeat_me => 'foo ');
     output = template.output();
 
-    assert_match /foo foo foo foo/, output, "user defined function"
-    assert_match /FOO FOO FOO FOO/, output, "user defined function with uc()"
+    assert_match(/foo foo foo foo/, output, "user defined function")
+    assert_match(/FOO FOO FOO FOO/, output, "user defined function with uc()")
 
     # test numeric functions
     template = HTML::Template::Expr.new(:path => ['test/templates'],
@@ -96,11 +96,11 @@ class TestComplex < Test::Unit::TestCase
                    :four => 4)
     output = template.output
 
-    assert_match /INT: 5/, output, "int()"
-    assert_match /SQRT: 2/, output, "sqrt()"
-    assert_match /SQRT2: 4/, output, "sqrt() 2"
-    assert_match /SUM: 14/, output, "int(4 + 10.1)"
-    assert_match /SPRINTF: 14.1000/, output, "sprintf('%0.4f', (10.1 + 4))"
+    assert_match(/INT: 5/, output, "int()")
+    assert_match(/SQRT: 2/, output, "sqrt()")
+    assert_match(/SQRT2: 4/, output, "sqrt() 2")
+    assert_match(/SUM: 14/, output, "int(4 + 10.1)")
+    assert_match(/SPRINTF: 14.1000/, output, "sprintf('%0.4f', (10.1 + 4))")
 
   end
 end

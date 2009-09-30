@@ -36,7 +36,7 @@ END
                               {
                               }
                              ])
-    assert_equal <<'END', template.output
+    assert_equal(<<'END', template.output)
 
   
     Adam  <!-- access to class.teacher_name -->

@@ -5,6 +5,6 @@ require "html_template_internal.so"
 
 class TestHtmlTemplateInternalExtn < Test::Unit::TestCase
   def test_truth
-    assert true
+    assert(true)
   end
 end

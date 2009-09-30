@@ -71,7 +71,7 @@ class TestHtmlTemplatePro < Test::Unit::TestCase
     test_tmpl_std('include/2', { :LIST => [{ :TEST => 1 }, { :TEST => 2 }] });
     test_tmpl('test_broken1', { :debug => -1 }, @@varset1, @@refset1);
 
-    assert true
+    assert(true)
   end
 
   def test_tmplpro_expr
@@ -169,9 +169,9 @@ class TestHtmlTemplatePro < Test::Unit::TestCase
     File.open("#{file}.raw", 'w') do |f|
       tmpl.output(:print_to => f)
     end
-    assert_equal File.read("#{file}.out"), File.read("#{file}.raw")
+    assert_equal(File.read("#{file}.out"), File.read("#{file}.raw"))
     File.unlink("#{file}.raw")
     output = tmpl.output;
-    assert_equal File.read("#{file}.out"), output
+    assert_equal(File.read("#{file}.out"), output)
   end
 end

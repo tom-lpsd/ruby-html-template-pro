@@ -7,17 +7,17 @@ class TestBasic < Test::Unit::TestCase
                                        :filename => 'foo.tmpl')
     template.param(:foo => 100)
     output = template.output()
-    assert_match /greater than/i, output, "greater than"
+    assert_match(/greater than/i, output, "greater than")
 
     template.param(:foo => 10)
     output = template.output()
-    assert_match /less than/i, output, "less than"
+    assert_match(/less than/i, output, "less than")
 
     template = HTML::Template::Expr.new(:path => ['test/templates'],
                                         :filename => 'negative.tmpl')
     template.param(:foo => 100)
     output = template.output()
-    assert_match /Yes/, output, "negative numbers work"
+    assert_match(/Yes/, output, "negative numbers work")
 
   end
 end

@@ -13,9 +13,9 @@ class TestRandom < Test::Unit::TestCase
     200.times do
       r = template.output
       changed = true if before != r
-      assert (r == 'YES' || r == 'NO')
+      assert((r == 'YES' || r == 'NO'))
       before = r
     end
-    assert changed, 'changed'
+    assert(changed, 'changed')
   end
 end

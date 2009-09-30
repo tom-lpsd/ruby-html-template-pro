@@ -32,7 +32,7 @@ module HTML
 
       @@func = {
         # note that length,defined,sin,cos,log,tan,... are built-in
-        :sprintf => lambda { |*args| sprintf *args },
+        :sprintf => lambda { |*args| sprintf(*args) },
         :substr  => lambda { |str, *args| args.size == 2 ? str[*args] : str[args[0]..-1] },
         :lc      => lambda { |str| str.downcase },
         :lcfirst => lambda { |str| str[0,1].downcase + str[1..-1] },
