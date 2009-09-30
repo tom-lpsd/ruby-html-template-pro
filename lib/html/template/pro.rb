@@ -1,4 +1,4 @@
-require 'html_template_internal'
+require 'html/template/internal'
 
 module HTML
   module Template
@@ -18,7 +18,7 @@ module HTML
 
     class Pro
 
-      VERSION = "0.0.1"
+      VERSION = "0.0.2"
 
       include HTML::Template::Internal
 
