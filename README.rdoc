@@ -1,4 +1,4 @@
-= tmplpro
+= html-template-pro
 
 * http://github.com/tom-lpsd/ruby-html-template-pro
 
@@ -7,7 +7,7 @@
 A Ruby port of HTML::Template::Pro (template engine originally written
 in Perl and XS). 
 
-== FEATURES/PROBLEMS:
+== FEATURES:
 
 * Fast. (Main part is written in C.)
 * Simple. (It avoids mixing up complex logic in View.)
@@ -46,6 +46,19 @@ in Perl and XS).
 == INSTALL:
 
 * sudo gem install html-template-pro
+
+== SEE ALSO:
+
+* Original perl module HTML::Template::Pro
+  (http://search.cpan.org/~viy/HTML-Template-Pro-0.92/)
+
+== AUTHOR:
+
+Tom Tsuruhara <tom.lpsd@gmail.com>
+
+Original perl module HTML::Template::Pro (and almost of this package's
+C code) is written by I. Vlasenko <viy@altlinux.org>. Thanks to him
+for his great work.
 
 == LICENSE:
 
