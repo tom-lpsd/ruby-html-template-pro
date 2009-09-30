@@ -11,6 +11,7 @@ $hoe = Hoe.spec 'html-template-pro' do
   self.rubyforge_name = 'tmplpro'
   self.version = "0.0.1"
   self.summary = 'A Ruby port of HTML::Template::Pro'
+  self.extra_rdoc_files = ['README.rdoc']
 end
 
 require 'newgem/tasks'
