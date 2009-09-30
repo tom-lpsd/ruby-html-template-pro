@@ -1,8 +1,8 @@
 namespace :extconf do
-  extension = File.basename(__FILE__, '.rake')
+  extension = 'html/template/internal'
 
   ext = "ext/#{extension}"
-  ext_so = "#{ext}/#{extension}.#{Config::CONFIG['DLEXT']}"
+  ext_so = "#{ext}/internal.#{Config::CONFIG['DLEXT']}"
   ext_files = FileList[
     "#{ext}/*.c",
     "#{ext}/*.h",
@@ -14,7 +14,7 @@ namespace :extconf do
 
 
   task :compile => extension do
-    if Dir.glob("**/#{extension}.{o,so,dll}").length == 0
+    if Dir.glob("**/#{extension}/internal.{o,so,dll}").length == 0
       STDERR.puts "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
       STDERR.puts "Gem actually failed to build.  Your system is"
       STDERR.puts "NOT configured properly to build #{GEM_NAME}."

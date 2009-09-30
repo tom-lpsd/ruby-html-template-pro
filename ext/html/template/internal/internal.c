@@ -439,7 +439,7 @@ static VALUE exec_tmpl(VALUE self, VALUE output)
     return INT2FIX(retval);
 }
 
-void Init_html_template_internal(void)
+void Init_internal(void)
 {
     mHtml = rb_define_module("HTML");
     mHtmlTemplate = rb_define_module_under(mHtml, "Template");
