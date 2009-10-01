@@ -13,6 +13,9 @@ $hoe = Hoe.spec 'html-template-pro' do
   self.version = "0.0.2"
   self.summary = 'A Ruby port of HTML::Template::Pro'
   self.extra_rdoc_files = ['README.rdoc']
+
+  clean_globs.push('ext/html/template/*.o')
+
   spec_extras[:required_ruby_version] = Gem::Requirement.new '> 1.9.0'
 end
 
