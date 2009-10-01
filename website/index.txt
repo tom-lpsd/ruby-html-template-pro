@@ -1,6 +1,5 @@
 h1. html-template-pro
 
-
 h2. What
 
 A Ruby port of HTML::Template::Pro (template engine originally written
@@ -12,15 +11,40 @@ h2. Installing
 
 h2. The basics
 
+<pre syntex="ruby">
+  # foo.rb
+  require 'html/template/pro'
+  
+  template = HTML::Template::Pro.new(:filename => 'foo.tmpl')
+  template.param(:param1 => 100)
+  puts template.output
+  
+  # foo.tmpl
+  <html>
+    <head></head>
+    <body>
+      <h1><TMPL_VAR NAME="param1"></h1>
+    </body>
+  </html>
 
-h2. Demonstration of usage
+  # results
+  $ ruby foo.rb
+  <html>
+    <head></head>
+    <body>
+      <h1>100</h1>
+    </body>
+  </html>
+</pre>
 
+Template syntax compies with original Perl module's.  See also,
+"HTML::Template::SYNTAX":http://search.cpan.org/~viy/HTML-Template-Pro-0.92/lib/HTML/Template/SYNTAX.pod#SYNOPSIS
+
+h2. Project
 
 <% if rubyforge_project_id %>
 
 * rubyforge: "http://rubyforge.org/scm/?group_id=<%= rubyforge_project_id %>":http://rubyforge.org/scm/?group_id=<%= rubyforge_project_id %>
-
-<pre>git clone git://rubyforge.org/tmplpro.git</pre>
 
 <% else %>
 
@@ -35,6 +59,8 @@ Or you can hack website/index.txt and make it all go away!!
 
 <% end %>
 
+* rdoc documentations: "http://tmplpro.rubyforge.org/rdoc/":http://tmplpro.rubyforge.org/rdoc/
+
 * github: "http://github.com/tom-lpsd/ruby-html-template-pro/tree/master":http://github.com/tom-lpsd/ruby-html-template-pro/tree/master
 
 <pre>git clone git://github.com/tom-lpsd/ruby-html-template-pro.git</pre>
@@ -42,16 +68,18 @@ Or you can hack website/index.txt and make it all go away!!
 
 h3. Build and test instructions
 
-<pre>cd tmplpro
+<pre>cd ruby-html-template-pro
 rake test
 rake install_gem</pre>
 
 
 h2. License
 
-LGPL
+This library is free software; you can redistribute it and/or modify
+it under the same terms of the GNU Lesser General Public License as
+published by the Free Software Foundation; either version 2 of the
+License, or (at your option) any later version.
 
 h2. Contact
 
 Comments are welcome. Send an email to "Tom Tsuruhara":mailto:tom.lpsd@gmail.com
-

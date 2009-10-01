@@ -1,8 +1,10 @@
+# -*- coding: utf-8 -*-
 require 'html/template/internal'
 
 module HTML
   module Template
 
+    # internally used
     def Internal.register_functions_impl(registory, func_spec, &block)
       if block && func_spec.kind_of?(Symbol)
         registory[func_spec] = block
@@ -19,8 +21,6 @@ module HTML
     class Pro
 
       VERSION = "0.0.2"
-
-      INPUTS = [:filename, :filehandle, :arrayref, :scalarref, :source]
 
       ASK_NAME_DEFAULT   = 0
       ASK_NAME_AS_IS     = 1
@@ -45,6 +45,39 @@ module HTML
         :srand   => lambda { |seed| srand seed },
       }
 
+      # Create a Template object. Template source is specified by several way.
+      # Exactly one kind of source must be specified.
+      # 
+      # * specify filename
+      #
+      #     template = HTML::Template::Pro.new(:filename => 'foo.tmpl')
+      #
+      # * specify source as string
+      #
+      #     template = HTLM::Template::Pro.new(:source => '<html><body><TMPL_VAR NAME="hello">!!</body></html>')
+      #
+      # * specify source by array of string
+      #
+      #     template = HTLM::Template::Pro.new(:source => ['<html>', '<body><TMPL_VAR NAME="hello">!!</body>', '</html>'])
+      #
+      # * specify IO object
+      #
+      #     template = HTLM::Template::Pro.new(:source => $stdin)
+      # 
+      # Other options:
+      #
+      # [path]
+      #
+      #   Type: Array of path string.
+      #
+      #   Example:
+      #     # find out tmpl/foo.tmpl
+      #     template = HTLM::Template::Pro.new(:filename => 'foo.tmpl', :path => ['tmpl'])
+      #
+      # [search_path_on_include]
+      #
+      #   Type: boolean
+      #
       def initialize(args={})
         @options = default_options.merge(args)
         if args.keys.count(&INPUTS.method(:include?)) != 1
@@ -77,10 +110,26 @@ module HTML
         merge_params(args)
       end
 
+      # Clear the internal param hash. All the parameters set before
+      # this call is reset.
       def clear_params
         @params.clear
       end
 
+      # returns the final result of the template. If you want to print
+      # out the result, you can do:
+      #   puts template.output
+      #
+      # When `output' is called each occurrence of <TMPL_VAR
+      # NAME=name> is replaced with the value assigned to "name" via
+      # "param()". If a named parameter is unset it is simply replaced
+      # with ’’.  <TMPL_LOOPS> are evaluated once per parameter set,
+      # accumulating output on each pass.
+      #
+      # You may optionally supply a IO object to print:
+      #   File.open('result.html', 'w') do |file|
+      #      template.output(:print_to => file)
+      #   end
       def output(options={})
 
         @options[:associate].reverse.each do |assoc|
@@ -98,18 +147,30 @@ module HTML
         end
       end
 
+      # <b>for perl compatibility</b>
+      #
+      # shortcut to HTML::Template::Pro.new(:filehandle => file)
       def self.new_filehandle(file)
         self.new(:filehandle => file)
       end
 
+      # <b>for perl compatibility</b>
+      #
+      # shortcut to HTML::Template::Pro.new(:filename => filename)
       def self.new_file(filename)
         self.new(:filename => file)
       end
 
+      # <b>for perl compatibility</b>
+      #
+      # shortcut to HTML::Template::Pro.new(:arrayref => lines)
       def self.new_array_ref(lines)
         self.new(:arrayref => lines)
       end
 
+      # <b>for perl compatibility</b>
+      #
+      # shortcut to HTML::Template::Pro.new(:scalarref => source_string)
       def self.new_scalar_ref(source)
         self.new(:scalarref => source)
       end
@@ -123,6 +184,8 @@ module HTML
       end
 
       private
+
+      INPUTS = [:filename, :filehandle, :arrayref, :scalarref, :source]
 
       def default_options
         return {
