@@ -1,5 +1,5 @@
 namespace :extconf do
-  extension = 'html/template/internal'
+  extension = 'html/template'
 
   ext = "ext/#{extension}"
   ext_so = "#{ext}/internal.#{Config::CONFIG['DLEXT']}"
