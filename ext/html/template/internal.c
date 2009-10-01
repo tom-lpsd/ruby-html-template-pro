@@ -413,7 +413,7 @@ static void setup_internal(VALUE self)
     rb_ivar_set(self, rb_intern("@internal_expr_results"), rb_ary_new());
 }
 
-static VALUE exec_tmpl(VALUE self, VALUE output)
+static VALUE exec_tmpl(VALUE module, VALUE self, VALUE output)
 {
     writer_functype writer;
     struct tmplpro_param* proparam;
@@ -444,6 +444,6 @@ void Init_internal(void)
     mHtml = rb_define_module("HTML");
     mHtmlTemplate = rb_define_module_under(mHtml, "Template");
     mHtmlTemplateInternal = rb_define_module_under(mHtmlTemplate, "Internal");
-    rb_define_module_function(mHtmlTemplateInternal, "exec_tmpl", &exec_tmpl, 1);
+    rb_define_module_function(mHtmlTemplateInternal, "exec_tmpl", &exec_tmpl, 2);
     cHtmlTemplateInternalState = rb_define_class_under(mHtmlTemplateInternal, "State", rb_cObject);
 }

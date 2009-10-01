@@ -20,8 +20,6 @@ module HTML
 
       VERSION = "0.0.2"
 
-      include HTML::Template::Internal
-
       INPUTS = [:filename, :filehandle, :arrayref, :scalarref, :source]
 
       ASK_NAME_DEFAULT   = 0
@@ -92,10 +90,10 @@ module HTML
         end
 
         if (options.include? :print_to)
-          exec_tmpl(options[:print_to])
+          HTML::Template::Internal.exec_tmpl(self, options[:print_to])
         else
           output_string = String.new
-          exec_tmpl(output_string)
+          HTML::Template::Internal.exec_tmpl(self, output_string)
           return output_string
         end
       end
