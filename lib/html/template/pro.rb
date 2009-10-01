@@ -102,6 +102,18 @@ module HTML
         self.new(:filehandle => file)
       end
 
+      def self.new_file(filename)
+        self.new(:filename => file)
+      end
+
+      def self.new_array_ref(lines)
+        self.new(:arrayref => lines)
+      end
+
+      def self.new_scalar_ref(source)
+        self.new(:scalarref => source)
+      end
+
       def self.register_function(func_spec, &block)
         HTML::Template::Internal.register_functions_impl(@@func, func_spec, &block)
       end
