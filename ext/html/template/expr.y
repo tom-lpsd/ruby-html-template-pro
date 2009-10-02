@@ -188,7 +188,7 @@ numEXP: NUM			{ $$ = $1;			}
 ;
 
 arglist: EXTFUNC '(' numEXP 	 	{
-  $1.arglist=state->param->InitExprArglistFuncPtr(state->param->expr_func_map);
+  $1.arglist=state->param->InitExprArglistFuncPtr(state->param->ext_calluserfunc_state);
   pusharg_expr_userfunc(exprobj,state->param,$1,$3);
   $$ = $1;
 }
