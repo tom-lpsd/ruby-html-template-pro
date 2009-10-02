@@ -1,20 +1,28 @@
 # -*- coding: utf-8 -*-
 require 'html/template/internal'
 
-module HTML
-  module Template
+module HTML       # :nodoc:
+  module Template # :nodoc:
 
-    # internally used
-    def Internal.register_functions_impl(registory, func_spec, &block)
-      if block && func_spec.kind_of?(Symbol)
-        registory[func_spec] = block
-      elsif func_spec.kind_of? Hash
-        unless func_spec.values.all?{|e| e.kind_of? Proc}
-          raise ArgumentError, "functions must be kind_of Proc"
+    module Internal # :nodoc:
+
+      class State   # :nodoc:
+        # supress documentation
+      end
+
+      module_function
+
+      def register_functions_impl(registory, func_spec, &block) # :nodoc:
+        if block && func_spec.kind_of?(Symbol)
+          registory[func_spec] = block
+        elsif func_spec.kind_of? Hash
+          unless func_spec.values.all?{|e| e.kind_of? Proc}
+            raise ArgumentError, "functions must be kind_of Proc"
+          end
+          registory.update(func_spec)
+        else
+          raise ArgumentError, "first argument must be symbol or hash contains functions"
         end
-        registory.update(func_spec)
-      else
-        raise ArgumentError, "first argument must be symbol or hash contains functions"
       end
     end
 
