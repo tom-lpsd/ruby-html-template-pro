@@ -1,3 +1,7 @@
+=== 0.0.3 2009-10-03
+
+* Add documentations.
+
 === 0.0.1 2009-09-29
 
 * 1 major enhancement:

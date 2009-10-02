@@ -28,7 +28,7 @@ module HTML       # :nodoc:
 
     class Pro
 
-      VERSION = "0.0.2"
+      VERSION = "0.0.3"
 
       # :stopdoc:
       ASK_NAME_DEFAULT   = 0

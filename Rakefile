@@ -10,7 +10,7 @@ Hoe.add_include_dirs 'ext/html/template'
 $hoe = Hoe.spec 'html-template-pro' do
   self.developer 'Tsuruhara Tom', 'tom.lpsd@gmail.com'
   self.rubyforge_name = 'tmplpro'
-  self.version = "0.0.2"
+  self.version = "0.0.3"
   self.summary = 'A Ruby port of HTML::Template::Pro'
   self.extra_rdoc_files = ['README.rdoc']
 
