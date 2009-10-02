@@ -49,8 +49,8 @@ Please see, HTML::Template::SYNTAX[http://search.cpan.org/~viy/HTML-Template-Pro
 
 == SEE ALSO:
 
-* Original perl module HTML::Template::Pro
-  (http://search.cpan.org/~viy/HTML-Template-Pro-0.92/)
+* Original perl module
+  HTML::Template::Pro[http://search.cpan.org/~viy/HTML-Template-Pro-0.92/]
 
 == WEBSITE:
 
