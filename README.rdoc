@@ -9,6 +9,9 @@ template engine originally written in Perl and XS. It's so fast
 because of its C based implementation. Its syntax is very simple.
 This results clearly separation of application logic and its view.
 
+Template syntax complies with original perl module's syntax.
+Please see, HTML::Template::SYNTAX[http://search.cpan.org/~viy/HTML-Template-Pro-0.92/lib/HTML/Template/SYNTAX.pod#SYNOPSIS].
+
 == SYNOPSIS:
 
   # foo.rb
@@ -51,15 +54,16 @@ This results clearly separation of application logic and its view.
 
 == WEBSITE:
 
- *  http://tmplpro.rubyforge.org/
+*  http://tmplpro.rubyforge.org/
 
 == AUTHOR:
 
 Tom Tsuruhara <tom.lpsd@gmail.com>
 
-Original perl module HTML::Template::Pro (and most of this package's C
-code) is written by I. Vlasenko <viy@altlinux.org>. Thanks to him for
-his great work.
+Original perl module
+HTML::Template::Pro[http://search.cpan.org/~viy/HTML-Template-Pro-0.92/]
+(and most of this package's C code) is written by I. Vlasenko
+<viy@altlinux.org>. Thanks to him for his great work.
 
 == COPYRIGHT AND LICENSE:
 

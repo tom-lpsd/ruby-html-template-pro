@@ -22,12 +22,16 @@ module HTML
 
       VERSION = "0.0.2"
 
+      # :stopdoc:
       ASK_NAME_DEFAULT   = 0
       ASK_NAME_AS_IS     = 1
       ASK_NAME_LOWERCASE = 2
       ASK_NAME_UPPERCASE = 4
       ASK_NAME_MASK = ASK_NAME_AS_IS | ASK_NAME_LOWERCASE | ASK_NAME_UPPERCASE
 
+      INPUTS = [:filename, :filehandle, :arrayref, :scalarref, :source]
+      # :startdoc:
+      
       @@func = {
         # note that length,defined,sin,cos,log,tan,... are built-in
         :sprintf => lambda { |*args| sprintf(*args) },
@@ -45,7 +49,7 @@ module HTML
         :srand   => lambda { |seed| srand seed },
       }
 
-      # Create a Template object. Template source is specified by several way.
+      # Create a `Template' object. `Template' source is specified by several way.
       # Exactly one kind of source must be specified.
       # 
       # * specify filename
@@ -64,19 +68,122 @@ module HTML
       #
       #     template = HTLM::Template::Pro.new(:source => $stdin)
       # 
-      # Other options:
+      # === Other options
       #
-      # [path]
+      # ==== path
       #
-      #   Type: Array of path string.
+      # Array of file path which include template files.
       #
-      #   Example:
+      # Example:
+      #
       #     # find out tmpl/foo.tmpl
       #     template = HTLM::Template::Pro.new(:filename => 'foo.tmpl', :path => ['tmpl'])
       #
-      # [search_path_on_include]
+      # ==== search_path_on_include
+      # 
+      # Boolean that indicates whether we search directory specified
+      # by `path' param when we meet the TMPL_INCLUDE tag.
       #
-      #   Type: boolean
+      # Example:
+      #
+      #     # tmpl_includes/foo.tmpl is used.
+      #     template = HTLM::Template::Pro.new(:source => '<TMPL_INCLUDE NAME="foo.tmpl">',
+      #                                        :path => ['tmpl_includes'],
+      #                                        :search_path_on_include => true)
+      #
+      # ==== associate
+      #
+      # this option allows you to inherit the parameter values from
+      # other objects.  The only requirement for the other object is
+      # that it have a "param()" method that works like HTML::Template::Pro#param.
+      #
+      # ==== case_sensitive
+      #
+      # if this options is true, template variable is treated as case sensitive.
+      #
+      # Example:
+      #
+      #   template = HTML::Template::Pro.new(:source => '<TMPL_VAR NAME="FoO">',
+      #                                      :case_sensitive => true)
+      #   template.param(:foo => 100)
+      #   puts template.output # output empty string ( foo is not 'FoO' )
+      #
+      # ==== loop_context_vars
+      #
+      # when this parameter is set to true (it is false by default)
+      # five loop context variables are made available inside a loop:
+      # __first__, __last__, __inner__, __odd__, __counter__.  They
+      # can be used with <TMPL_IF>, <TMPL_UNLESS> and <TMPL_ELSE> to
+      # control how a loop is output.
+      #
+      # Example:
+      #   In your templates,
+      #
+      #   <TMPL_LOOP NAME="loop">
+      #     <TMPL_IF NAME="__first__">First!</TMPL_IF>
+      #       <TMPL_VAR NAME="__counter__">
+      #     <TMPL_IF NAME="__last__">Last!</TMPL_IF>
+      #   </TMPL_LOOP>
+      #
+      # ==== no_includes
+      #
+      # set this option to true to disallow the <TMPL_INCLUDE> tag in the
+      # template file.  This can be used to make opening untrusted
+      # templates *slightly* less dangerous.  Defaults to false.
+      #
+      # ==== max_includes
+      #
+      # set this variable to determine the maximum depth that includes
+      # can reach.  Set to 10 by default.  Including files to a depth
+      # greater than this value causes an error message to be
+      # displayed.  Set to 0 to disable this protection.
+      #
+      # ==== global_vars
+      #
+      # normally variables declared outside a loop are not available
+      # inside a loop.  This option makes <TMPL_VAR>s like global
+      # variables - they have unlimited scope.  This option also
+      # affects <TMPL_IF> and <TMPL_UNLESS>.
+      #
+      # ==== path_like_variable_scope
+      #
+      # this option switches on a Shigeki Morimoto extension to
+      # HTML::Template::Pro that allows access to variables that are
+      # outside the current loop scope using path-like expressions.
+      #
+      # Example:
+      #
+      #   <TMPL_LOOP NAME=class>
+      #     <TMPL_LOOP NAME=person>
+      #       <TMPL_VAR NAME="../teacher_name">  <!-- access to class.teacher_name -->
+      #       <TMPL_VAR NAME="name">
+      #       <TMPL_VAR NAME="/top_level_value"> <!-- access to top level value -->
+      #       <TMPL_VAR NAME="age">
+      #         <TMPL_LOOP NAME="../../school">  <!-- enter loop before accessing its vars -->
+      #           <TMPL_VAR NAME="school_name">  <!-- access to [../../]school.school_name -->
+      #         </TMPL_LOOP>
+      #     </TMPL_LOOP>
+      #   </TMPL_LOOP>
+      #
+      # ==== filter
+      #
+      # By using this option, you can filter the source of template
+      # before HTML::Template::Pro prcesses it.
+      #
+      # Example:
+      #
+      #   myfilter = ->(source){ source.gsub(/Foo/, 'Bar') }
+      #   template = HTML::Template::Pro.new(:source => '<TMPL_VAR NAME="Foo">!!',
+      #                                      :filter => myfilter)
+      #   template.param(:Bar => 'hello')
+      #   puts template.output  # displays 'hello!!'
+      #
+      # ==== default_escape
+      #
+      # Set this parameter to "HTML", "URL" or "JS" and
+      # HTML::Template::Pro will apply the specified escaping to all
+      # variables unless they declare a different escape in the
+      # template.
       #
       def initialize(args={})
         @options = default_options.merge(args)
@@ -97,6 +204,48 @@ module HTML
         @filtered_template = {}
       end
 
+      # #param can be called in a number of ways.
+      # 
+      # 1. call with no arguments. 
+      #
+      #    returns a list of parameters set after new.
+      #
+      #    Example:
+      #      template = HTML::Template::Pro.new(:filename => 'foo.tmpl')
+      #      template.param(:foo => 10, :bar => 20)
+      #      params = template.param # returns [:foo, :bar]
+      #
+      # 2. pass one parameter name.
+      #
+      #    returns the value of a parameter.
+      #
+      #    Example:
+      #      template = HTML::Template::Pro.new(:filename => 'foo.tmpl')
+      #      template.param(:foo => 10, :bar => 20)
+      #      val = template.param(:foo) # now `val' equals 10.
+      #
+      # 3. pass hash.
+      #
+      #    assign values to parameters.
+      #
+      #    Example:
+      #
+      #      template = HTML::Template::Pro.new(:source => <<'TMPL')
+      #      <TMPL_VAR NAME="foo">
+      #      <TMPL_VAR NAME="bar">
+      #      TMPL
+      #      template.param(:foo => 10, :bar => 20)
+      #      puts template.output # displays "10\n20\n"
+      #
+      #      # you can specify the value by passing block.
+      #      # in this way, you must assign exactly one parameter.
+      #      template.param(:foo) { Time.now }
+      #      puts template.output # prints the time #output is executed.
+      #
+      #      # Or you can use proc or lambda.
+      #      template.param(:foo => lambda { Time.now },
+      #                     :bar => lambda { rand(100) })
+      #
       def param(args=nil, &block)
         return @params.keys if args.nil?
         if !(args.kind_of? Hash)
@@ -175,17 +324,34 @@ module HTML
         self.new(:scalarref => source)
       end
 
+      # register the function globally. See HTML::Template::Pro#register_function.
+      # Functions registered by this class method is shared by all instances.
       def self.register_function(func_spec, &block)
         HTML::Template::Internal.register_functions_impl(@@func, func_spec, &block)
       end
 
+      # define a new function that can be used in <tt><TMPL_VAR
+      # EXPR=""></tt> tag.  function is specified by block or lambda.
+      #
+      # Example:
+      #   template = HTML::Template::Pro.new(:source => '<TMPL_VAR EXPR="double(10)">')
+      #   template.register_function(:double) {|num| num * 2 }
+      #   # or template.register_function(:double => lambda {|num| num * 2 })
+      #   puts template.output # displays `20'
+      #
+      # You can also register the functions by passing lambdas to new.
+      #
+      # Example:
+      #   template = HTML::Template::Pro.new(:filename => 'foo.tmpl',
+      #                                      :functions => {
+      #                                          :square => lambda {|x| x * x },
+      #                                      })
+      #
       def register_function(func_spec, &block)
         HTML::Template::Internal.register_functions_impl(@options[:expr_func], func_spec, &block)
       end
 
       private
-
-      INPUTS = [:filename, :filehandle, :arrayref, :scalarref, :source]
 
       def default_options
         return {
